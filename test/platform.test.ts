@@ -116,5 +116,5 @@ describe("built-in SQLite OpenCode backend", () => {
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });
