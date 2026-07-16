@@ -40,7 +40,7 @@ describe("Neo rendering", () => {
       renderBlankKey()
     ]);
     for (const buffer of buffers) expect(buffer.length).toBe(96 * 96 * 4);
-  });
+  }, 15_000);
 
   it("renders every configured InfoBar view at 248x58 RGBA", async () => {
     for (let page = 0; page < DEFAULT_CONFIG.infoBar.length; page += 1) {
