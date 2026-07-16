@@ -120,7 +120,7 @@ PATH_UNIT="$(systemd_escape "$PATH")"
   echo '[Service]'
   echo 'Type=simple'
   echo "ExecStart=\"$NODE_UNIT\" \"$APP_UNIT/dist/src/index.js\""
-  echo "WorkingDirectory=\"$APP_UNIT\""
+  echo "WorkingDirectory=$APP_UNIT"
   echo 'Restart=always'
   echo 'RestartSec=5'
   echo "Environment=\"HOME=$HOME_UNIT\""
