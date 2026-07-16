@@ -1,16 +1,12 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { listJsonl, loadJson, processAlive, readTail, type FileStamp } from "../lib/files.js";
+import { readClaudeAccessToken } from "../lib/claude-auth.js";
 import { clampPercent, emptyUsage } from "../lib/util.js";
+import { claudeProjectsDirectory, claudeSessionsDirectory, wslDistributionFromPath } from "../platform.js";
 import type { PersistedState, SessionSnapshot, UsageSnapshot, UsageWindow } from "../types.js";
-
-const execFileAsync = promisify(execFile);
-const home = os.homedir();
-const sessionDirectory = path.join(home, ".claude", "sessions");
-const projectDirectory = path.join(home, ".claude", "projects");
 
 interface ClaudeSessionFile {
   pid?: number;
@@ -32,6 +28,8 @@ interface ClaudeUsageResponse {
   limits?: ClaudeUsageLimit[];
 }
 
+const execFileAsync = promisify(execFile);
+
 export interface ClaudeTail {
   lastUser: number;
   lastEnd: number;
@@ -45,10 +43,15 @@ export class ClaudeCollector {
   private usage: UsageSnapshot = emptyUsage("claude", "loading");
   private usageFetchedAt = 0;
 
+  constructor(
+    private readonly sessionDirectory = claudeSessionsDirectory(),
+    private readonly projectDirectory = claudeProjectsDirectory()
+  ) {}
+
   async collect(state: PersistedState, forceUsage = false): Promise<{ sessions: SessionSnapshot[]; usage: UsageSnapshot }> {
     const now = Date.now();
     if (!this.projectFiles.length || now - this.scannedAt > 30_000) {
-      this.projectFiles = await listJsonl(projectDirectory);
+      this.projectFiles = await listJsonl(this.projectDirectory);
       this.scannedAt = now;
     }
     const [sessions] = await Promise.all([
@@ -61,7 +64,7 @@ export class ClaudeCollector {
   private async readSessions(state: PersistedState): Promise<SessionSnapshot[]> {
     let names: string[] = [];
     try {
-      names = (await fs.promises.readdir(sessionDirectory)).filter((name) => name.endsWith(".json"));
+      names = (await fs.promises.readdir(this.sessionDirectory)).filter((name) => name.endsWith(".json"));
     } catch {
       return [];
     }
@@ -75,8 +78,8 @@ export class ClaudeCollector {
 
     const sessions: SessionSnapshot[] = [];
     for (const filename of names) {
-      const raw = loadJson<ClaudeSessionFile | null>(path.join(sessionDirectory, filename), null);
-      if (!raw?.sessionId || !processAlive(raw.pid)) continue;
+      const raw = loadJson<ClaudeSessionFile | null>(path.join(this.sessionDirectory, filename), null);
+      if (!raw?.sessionId || !await claudeProcessAlive(raw.pid, this.sessionDirectory)) continue;
       const project = projectsBySession.get(raw.sessionId);
       const tail = project ? parseClaudeTail(await readTail(project.path, 768 * 1024), project.mtimeMs) : emptyClaudeTail();
       const status = String(raw.status || "idle").toLowerCase();
@@ -114,19 +117,12 @@ export class ClaudeCollector {
   private async readUsage(): Promise<void> {
     this.usageFetchedAt = Date.now();
     try {
-      if (process.platform !== "darwin") throw new Error("Claude usage currently requires macOS Keychain");
-      const { stdout } = await execFileAsync("/usr/bin/security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"], {
-        timeout: 5_000,
-        maxBuffer: 1024 * 1024
-      });
-      const credentials = JSON.parse(stdout) as { claudeAiOauth?: { accessToken?: string }; accessToken?: string };
-      const token = credentials.claudeAiOauth?.accessToken || credentials.accessToken;
-      if (!token) throw new Error("Claude Code OAuth token not found");
+      const { token } = await readClaudeAccessToken();
       const response = await fetch("https://api.anthropic.com/api/oauth/usage", {
         headers: {
           Authorization: `Bearer ${token}`,
           "anthropic-beta": "oauth-2025-04-20",
-          "user-agent": "neo-agent-deck/0.2.1"
+          "user-agent": "neo-agent-deck/0.3.0"
         },
         signal: AbortSignal.timeout(10_000)
       });
@@ -144,6 +140,18 @@ export class ClaudeCollector {
     } catch (error) {
       this.usage = { ...this.usage, updatedAt: Date.now(), error: error instanceof Error ? error.message : String(error) };
     }
+  }
+}
+
+async function claudeProcessAlive(pid: unknown, sessionDirectory: string): Promise<boolean> {
+  if (!Number.isInteger(pid) || Number(pid) <= 0) return false;
+  const distribution = process.platform === "win32" ? wslDistributionFromPath(sessionDirectory) : null;
+  if (!distribution) return processAlive(pid);
+  try {
+    await execFileAsync("wsl.exe", ["-d", distribution, "--exec", "sh", "-lc", `kill -0 ${Number(pid)}`], { timeout: 2_000 });
+    return true;
+  } catch {
+    return false;
   }
 }
 

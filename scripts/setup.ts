@@ -173,7 +173,10 @@ function printLayout(keys: KeyModule[]): void {
 function printResult(cfg: DeckConfig): void {
   console.log(`Saved ${path.join(configDir(), "config.json")}:`);
   console.log(JSON.stringify(cfg, null, 2));
-  console.log("\nRestart the service (npm run dev, or launchd reloads on next start) to apply.");
+  const restart = process.platform === "win32"
+    ? "npm run install:win"
+    : "launchctl kickstart -k gui/$UID/com.neo-agent-deck";
+  console.log(`\nRestart npm run dev, or run ${restart}, to apply.`);
 }
 
 function printHelp(): void {

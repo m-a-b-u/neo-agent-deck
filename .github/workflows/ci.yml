@@ -9,12 +9,13 @@ permissions:
 
 jobs:
   check:
-    # macOS-only app; the Neo device and agent backends are absent in CI,
-    # so only build, typecheck, and unit tests run.
-    runs-on: macos-latest
+    # The Neo device and agent backends are absent in CI. Build, typecheck,
+    # unit/integration tests, and the offline doctor run on both host OSes.
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version: [20, 22]
+        os: [macos-latest, windows-latest]
+        node-version: ["22", "24"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,3 +24,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run doctor
+      - name: Exercise Windows login-service install
+        if: runner.os == 'Windows' && matrix.node-version == '24'
+        shell: pwsh
+        run: |
+          npm run install:win
+          Start-Sleep -Seconds 3
+          $pidFile = Join-Path $HOME ".neo-agent-deck\supervisor.pid"
+          if (-not (Test-Path $pidFile)) { throw "Windows supervisor PID file is missing." }
+      - name: Exercise Windows login-service uninstall
+        if: always() && runner.os == 'Windows' && matrix.node-version == '24'
+        shell: pwsh
+        run: |
+          npm run uninstall:win
+          $startupFile = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)) "Neo Agent Deck.vbs"
+          if (Test-Path $startupFile) { throw "Windows startup entry was not removed." }

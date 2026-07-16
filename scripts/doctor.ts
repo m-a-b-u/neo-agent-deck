@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { DeviceModelId, listStreamDecks } from "@elgato-stream-deck/node";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { Dashboard } from "../src/dashboard.js";
+import { readClaudeAccessToken } from "../src/lib/claude-auth.js";
+import { claudeSessionsDirectory, codexSessionsDirectory, openCodeDatabaseFile, platformLabel } from "../src/platform.js";
 
-const execFileAsync = promisify(execFile);
+console.log(`Platform: ${platformLabel()} · Node ${process.version}`);
 try {
   const devices = await listStreamDecks();
   const neo = devices.find((device) => device.model === DeviceModelId.NEO);
@@ -17,15 +15,15 @@ try {
 }
 
 try {
-  const { stdout } = await execFileAsync("/usr/bin/security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"], { timeout: 5_000 });
-  const credentials = JSON.parse(stdout) as { claudeAiOauth?: { accessToken?: string }; accessToken?: string };
-  console.log(`${credentials.claudeAiOauth?.accessToken || credentials.accessToken ? "✓" : "✗"} Claude Code sign-in available`);
+  const credentials = await readClaudeAccessToken();
+  console.log(`✓ Claude Code sign-in available (${credentials.source})`);
 } catch {
   console.log("✗ Claude Code sign-in not available");
 }
 
-console.log(`${fs.existsSync(path.join(os.homedir(), ".codex", "sessions")) ? "✓" : "✗"} Codex session data available`);
-console.log(`${fs.existsSync(path.join(os.homedir(), ".local", "share", "opencode", "opencode.db")) ? "✓" : "✗"} OpenCode SQLite data available`);
+console.log(`${fs.existsSync(claudeSessionsDirectory()) ? "✓" : "✗"} Claude Code session data available`);
+console.log(`${fs.existsSync(codexSessionsDirectory()) ? "✓" : "✗"} Codex session data available`);
+console.log(`${fs.existsSync(openCodeDatabaseFile()) ? "✓" : "✗"} OpenCode SQLite data available`);
 
 try {
   const snapshot = await new Dashboard().collect(true);

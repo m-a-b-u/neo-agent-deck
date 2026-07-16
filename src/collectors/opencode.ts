@@ -1,13 +1,12 @@
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { emptyUsage } from "../lib/util.js";
+import { openCodeDatabaseFile, wslDistributionFromPath } from "../platform.js";
 import type { PersistedState, SessionSnapshot, SessionState, UsageSnapshot, UsageWindow } from "../types.js";
 
 const execFileAsync = promisify(execFile);
-const database = path.join(os.homedir(), ".local", "share", "opencode", "opencode.db");
 const ACTIVE_MESSAGE_MS = 10 * 60_000;
 
 export interface OpenCodeSessionRow {
@@ -28,16 +27,18 @@ interface OpenCodeUsageRow {
 }
 
 export class OpenCodeCollector {
+  constructor(private readonly database = openCodeDatabaseFile()) {}
+
   async collect(state: PersistedState): Promise<{ sessions: SessionSnapshot[]; usage: UsageSnapshot }> {
-    if (!fs.existsSync(database)) {
+    if (!fs.existsSync(this.database)) {
       return { sessions: [], usage: emptyUsage("opencode", "OpenCode database not found", { costUsd: 0, updatedAt: Date.now() }) };
     }
 
     try {
       const [rows, usageRows, appRunning] = await Promise.all([
-        query<OpenCodeSessionRow>(sessionsSql),
-        query<OpenCodeUsageRow>(usageSql),
-        isOpenCodeRunning()
+        queryOpenCodeDatabase<OpenCodeSessionRow>(this.database, sessionsSql),
+        queryOpenCodeDatabase<OpenCodeUsageRow>(this.database, usageSql),
+        isOpenCodeRunning(this.database)
       ]);
       const now = Date.now();
       const sessions = rows.map((row, index) => toSession(row, state, now, appRunning && index === 0));
@@ -93,17 +94,27 @@ function toSession(row: OpenCodeSessionRow, state: PersistedState, now: number, 
   };
 }
 
-async function query<T>(sql: string): Promise<T[]> {
-  const { stdout } = await execFileAsync("/usr/bin/sqlite3", ["-json", database, sql], {
-    timeout: 5_000,
-    maxBuffer: 4 * 1024 * 1024
-  });
-  return stdout.trim() ? JSON.parse(stdout) as T[] : [];
+export function queryOpenCodeDatabase<T>(databaseFile: string, sql: string): T[] {
+  const database = new DatabaseSync(databaseFile, { readOnly: true, timeout: 5_000 });
+  try {
+    return database.prepare(sql).all() as T[];
+  } finally {
+    database.close();
+  }
 }
 
-async function isOpenCodeRunning(): Promise<boolean> {
+async function isOpenCodeRunning(databaseFile: string): Promise<boolean> {
   try {
-    await execFileAsync("/usr/bin/pgrep", ["-x", "OpenCode"], { timeout: 1_000 });
+    if (process.platform === "win32") {
+      const distribution = wslDistributionFromPath(databaseFile);
+      if (distribution) {
+        await execFileAsync("wsl.exe", ["-d", distribution, "--exec", "pgrep", "-ix", "opencode"], { timeout: 2_000 });
+        return true;
+      }
+      const { stdout } = await execFileAsync("tasklist.exe", ["/FI", "IMAGENAME eq OpenCode.exe", "/FO", "CSV", "/NH"], { timeout: 2_000 });
+      return /"OpenCode\.exe"/i.test(stdout);
+    }
+    await execFileAsync("pgrep", ["-ix", "opencode"], { timeout: 1_000 });
     return true;
   } catch {
     return false;

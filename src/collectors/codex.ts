@@ -1,12 +1,9 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { extractUuid, listJsonl, readTail, type FileStamp } from "../lib/files.js";
 import { clampPercent, emptyUsage } from "../lib/util.js";
+import { codexSessionsDirectory } from "../platform.js";
 import type { PersistedState, SessionSnapshot, UsageSnapshot, UsageWindow } from "../types.js";
-
-const home = os.homedir();
-const sessionDirectory = path.join(home, ".codex", "sessions");
 
 interface RateWindow {
   used_percent?: number;
@@ -35,10 +32,12 @@ export class CodexCollector {
   private readonly cache = new Map<string, { size: number; mtimeMs: number; info: CodexTail }>();
   private usage: UsageSnapshot = emptyUsage("codex", "loading");
 
+  constructor(private readonly sessionDirectory = codexSessionsDirectory()) {}
+
   async collect(state: PersistedState): Promise<{ sessions: SessionSnapshot[]; usage: UsageSnapshot }> {
     const now = Date.now();
     if (!this.files.length || now - this.scannedAt > 30_000) {
-      this.files = await listJsonl(sessionDirectory);
+      this.files = await listJsonl(this.sessionDirectory);
       this.scannedAt = now;
     }
     const candidates: CodexCandidate[] = [];
@@ -174,4 +173,3 @@ export function windowLabel(minutes?: number): string {
   if (value % 60 === 0) return `${value / 60}h`;
   return `${value}m`;
 }
-

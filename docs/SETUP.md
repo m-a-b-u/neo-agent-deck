@@ -1,49 +1,133 @@
-# Neo Agent Deck — Setup Guide
+# Neo Agent Deck setup guide
 
-This guide covers installing Neo Agent Deck and configuring the per-key layout, the InfoBar rotation, and brightness.
+This guide covers installation on macOS and Windows, backend discovery, the per-key layout, InfoBar rotation, and brightness.
 
 ## Prerequisites
 
-- macOS (the install scripts and Keychain-based Claude usage lookup are macOS-only).
-- Node.js 20.12 or newer (`node --version`).
-- An Elgato Stream Deck Neo connected over USB.
-- **The Elgato Stream Deck app must be closed.** Only one process can own the Neo's HID interface; if the Elgato app is running, Neo Agent Deck reports "Neo detected but busy".
-- At least one of Claude Code, Codex, or OpenCode installed locally (that's where the data comes from).
+- macOS or Windows 10+.
+- Node.js 22.13 or newer (`node --version`).
+- An Elgato Stream Deck Neo. It may stay disconnected during setup.
+- At least one local Claude Code, Codex, or OpenCode installation.
+- Elgato Stream Deck must be closed while Neo Agent Deck controls the device. The installers close it automatically.
 
-## Install
+## Try it in the foreground
+
+Run these commands from a terminal in the repository:
 
 ```bash
-npm install        # install dependencies
-npm run doctor     # verify device access and data sources
-npm run setup      # interactive layout configuration (optional; defaults work out of the box)
-npm run dev        # run in the foreground to try it out
-npm run install:mac  # install as a launchd service that starts at login
+npm ci
+npm run doctor
+npm run setup       # optional; the recommended layout is already the default
+npm run preview:live
+npm run dev
 ```
 
-To remove the service later: `npm run uninstall:mac`.
+`doctor` does not require a connected Neo. It verifies the platform, Node version, USB detection, Claude sign-in, expected data paths, SQLite database, and each collector without printing credentials or session content.
+
+## Install at login
+
+### macOS
+
+```bash
+npm run install:mac
+```
+
+The installer builds and copies the app to `~/.local/share/neo-agent-deck`, closes Elgato Stream Deck, and installs the per-user `com.neo-agent-deck` launch agent. No administrator password is required.
+
+Useful service commands:
+
+```bash
+launchctl kickstart -k gui/$UID/com.neo-agent-deck
+tail -f ~/Library/Logs/NeoAgentDeck.log
+npm run uninstall:mac
+```
+
+### Windows
+
+Open PowerShell in the repository and run:
+
+```powershell
+npm run install:win
+```
+
+The installer builds and copies the app to `%LOCALAPPDATA%\NeoAgentDeck`, installs production dependencies, closes Elgato Stream Deck, and creates a hidden per-user Startup entry. A small supervisor restarts the Node process if it exits. No administrator window or password is required.
+
+Logs and PID files live under `%USERPROFILE%\.neo-agent-deck`; configuration is kept when uninstalling.
+
+```powershell
+Get-Content "$HOME\.neo-agent-deck\logs\NeoAgentDeck.log" -Wait
+npm run install:win     # replace/update and restart the installation
+npm run uninstall:win
+```
+
+## Windows and WSL
+
+Native Windows agent installations use the same defaults as macOS and need no special configuration:
+
+- Claude Code: `%USERPROFILE%\.claude`
+- Codex: `%USERPROFILE%\.codex`
+- OpenCode: `%USERPROFILE%\.local\share\opencode`
+
+Native Windows is the simplest setup because the dashboard, USB device, and agent processes share one operating system. WSL data is also supported through Windows' `\\wsl.localhost` share. Set the paths in the same PowerShell window before installing and persist them for future logins:
+
+```powershell
+$distro = "Ubuntu-24.04"
+$linuxUser = "your-linux-user"
+
+$env:CLAUDE_CONFIG_DIR = "\\wsl.localhost\$distro\home\$linuxUser\.claude"
+$env:CODEX_HOME = "\\wsl.localhost\$distro\home\$linuxUser\.codex"
+$env:OPENCODE_DATA_HOME = "\\wsl.localhost\$distro\home\$linuxUser\.local\share\opencode"
+
+[Environment]::SetEnvironmentVariable("CLAUDE_CONFIG_DIR", $env:CLAUDE_CONFIG_DIR, "User")
+[Environment]::SetEnvironmentVariable("CODEX_HOME", $env:CODEX_HOME, "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DATA_HOME", $env:OPENCODE_DATA_HOME, "User")
+
+npm run doctor
+npm run install:win
+```
+
+Neo Agent Deck reads the files through the UNC paths and asks that WSL distribution whether the associated Claude/OpenCode process is alive. The Stream Deck itself remains attached to the native Windows service.
+
+If Claude usage says sign-in is unavailable, log in once with Claude Code. You can also provide its documented OAuth environment variable without storing it in this repository:
+
+```powershell
+$env:CLAUDE_CODE_OAUTH_TOKEN = "your-token"
+[Environment]::SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", $env:CLAUDE_CODE_OAUTH_TOKEN, "User")
+npm run install:win
+```
+
+Never add this token to `config.json`, a script, a screenshot, or a Git commit.
+
+## Backend locations
+
+| Provider | Default data directory | Environment override |
+| --- | --- | --- |
+| Claude Code | `~/.claude` | `CLAUDE_CONFIG_DIR` |
+| Codex | `~/.codex` | `CODEX_HOME` |
+| OpenCode | `~/.local/share/opencode` | `OPENCODE_DATA_HOME` |
+
+Claude usage authentication is read in this order: `CLAUDE_CODE_OAUTH_TOKEN`, macOS Keychain, then Claude's `.credentials.json`. The value is kept in memory only. OpenCode's database is opened read-only using Node's built-in SQLite API.
 
 ## Configuration
 
-All configuration lives in a single JSON file:
+All user configuration lives in:
 
-```
+```text
 ~/.neo-agent-deck/config.json
 ```
 
-(Override the directory with the `NEO_AGENT_DECK_HOME` environment variable; runtime state is stored next to it in `state.json`.)
-
-You normally never edit this file by hand — run the interactive setup:
+Override that directory with `NEO_AGENT_DECK_HOME`; runtime state is stored next to it in `state.json`. Normally you do not edit either file by hand:
 
 ```bash
-npm run setup              # walk through keys, InfoBar, resting page, brightness
-npm run setup -- --print   # print the current effective config as JSON
-npm run setup -- --default # reset to the default layout without prompts
-npm run setup -- --reset   # same as --default
+npm run setup              # keys, InfoBar, resting page, brightness
+npm run setup -- --print   # print effective JSON
+npm run setup -- --default # restore the recommended default
+npm run setup -- --reset   # alias for --default
 ```
 
-The setup walks the 8 physical keys in order (keys 0–3 are the top row, 4–7 the bottom row, left to right), then asks for the InfoBar page rotation, the resting page, and brightness. Press Enter at any prompt to keep the current value. Restart the service afterwards to apply changes.
+The eight physical keys are configured in viewing order: keys 0–3 are the top row and 4–7 the bottom row. Press Enter at any prompt to keep the displayed value. Restart or reinstall the service afterward to apply changes.
 
-If the file is missing or unreadable, Neo Agent Deck silently uses the default configuration. Invalid top-level fields fall back individually; an unknown entry in an otherwise valid eight-key layout becomes a safe blank key. A broken config therefore cannot prevent startup.
+If the file is missing or unreadable, safe defaults apply. Invalid top-level fields fall back individually; an unknown key entry becomes a blank tile. A broken configuration cannot prevent startup.
 
 ### Config file shape
 
@@ -57,50 +141,41 @@ If the file is missing or unreadable, Neo Agent Deck silently uses the default c
 }
 ```
 
-- `brightness` — panel brightness, 0–100.
-- `keys` — exactly 8 key modules, one per physical key (0–3 top row, 4–7 bottom row).
-- `infoBar` — the InfoBar page rotation, at least one page, in cycle order.
-- `restingPage` — the page shown after startup; must appear in `infoBar`.
+- `brightness`: panel brightness from 0–100.
+- `keys`: exactly eight modules, one for each physical key.
+- `infoBar`: at least one page, in cycle order.
+- `restingPage`: startup page; it must occur in `infoBar`.
 
 ## Module reference
 
-### Key modules (`keys`)
+### Key modules
 
-| Module | Shows | Tap action |
+| Module | Display | Tap action |
 | --- | --- | --- |
-| `claude.status` | Claude session state: green WORKING, gray IDLE, amber NEED YOU with counts | Acknowledges all completed Claude sessions |
-| `codex.status` | Codex session state (same colors/counts) | Acknowledges all completed Codex sessions |
-| `opencode.status` | OpenCode session state (same colors/counts) | Acknowledges all completed OpenCode sessions |
-| `claude.usage` | Claude plan usage percentage with progress bar | Forces a usage refresh |
-| `codex.usage` | Codex rate-limit usage percentage with progress bar | Forces a usage refresh |
-| `opencode.usage` | OpenCode token usage and 7-day cost | Forces a usage refresh |
-| `summary` | Totals across all agents: open and attention-needed sessions | Jumps the InfoBar to the `all` page and refreshes usage |
-| `info` | InfoBar page indicator (`INFO 2/4`) | Cycles the InfoBar forward |
-| `blank` | A dim empty tile | Plain refresh (does nothing visible) |
+| `claude.status` | Claude WORKING, IDLE, or NEED YOU state | Acknowledge completed Claude sessions |
+| `codex.status` | Codex WORKING, IDLE, or NEED YOU state | Acknowledge completed Codex sessions |
+| `opencode.status` | OpenCode WORKING, IDLE, or NEED YOU state | Acknowledge completed OpenCode sessions |
+| `claude.usage` | Claude plan percentages | Force usage refresh |
+| `codex.usage` | Codex rate-limit percentages | Force usage refresh |
+| `opencode.usage` | OpenCode tokens and seven-day cost | Force usage refresh |
+| `summary` | Combined open and attention counts | Open All Agents page and refresh |
+| `info` | Current page, for example `INFO 2/4` | Move forward one page |
+| `blank` | Dim empty tile | Refresh only |
 
-### InfoBar modules (`infoBar` / `restingPage`)
+### InfoBar modules
 
-| Module | The 248×58 InfoBar shows |
+| Module | InfoBar content |
 | --- | --- |
 | `claude` | Claude 5-hour and weekly plan usage |
 | `codex` | Codex rate-limit usage |
 | `opencode` | OpenCode 24-hour and 7-day token usage |
-| `all` | Total open, working, and attention-needed sessions across all agents |
+| `all` | Combined open, working, and attention counts |
 
-## Touch points
-
-The two touch points beside the InfoBar are fixed and not configurable:
-
-- **Left touch point** — cycle the InfoBar one page backward.
-- **Right touch point** — cycle the InfoBar one page forward.
-
-Cycling wraps around the `infoBar` rotation in the configured order. An `info` key does the same as the right touch point.
+The left Neo touch point moves one page backward; the right touch point moves one page forward. Cycling wraps around the configured `infoBar` list.
 
 ## Example layouts
 
-### 1. Recommended default
-
-Status row on top, usage row below, summary and info keys on the right edge.
+### Recommended default
 
 ```json
 {
@@ -112,9 +187,7 @@ Status row on top, usage row below, summary and info keys on the right edge.
 }
 ```
 
-### 2. Claude-only
-
-Everything else blanked out; the InfoBar only shows Claude usage and the totals.
+### Claude only
 
 ```json
 {
@@ -126,9 +199,7 @@ Everything else blanked out; the InfoBar only shows Claude usage and the totals.
 }
 ```
 
-### 3. Usage-focused
-
-All three usage tiles doubled up front, statuses collapsed into the summary tile, InfoBar resting on Claude usage.
+### Usage focused
 
 ```json
 {
@@ -140,12 +211,14 @@ All three usage tiles doubled up front, statuses collapsed into the summary tile
 }
 ```
 
-Apply any example by pasting it into `~/.neo-agent-deck/config.json` and restarting, or reproduce it with `npm run setup`.
+## Reset and troubleshooting
 
-## Resetting
+`npm run setup -- --reset` writes the default layout. Deleting `config.json` has the same effect. `state.json` contains only acknowledgement and page state and can also be deleted safely.
 
-```bash
-npm run setup -- --reset
-```
+If the device or data does not look right:
 
-writes the default configuration back. Deleting `~/.neo-agent-deck/config.json` has the same effect (defaults apply when no file exists). Runtime state (acknowledged sessions, current InfoBar page) lives in `state.json` in the same directory and can also be deleted safely.
+1. Run `npm run doctor`.
+2. Run `npm run status` for a sanitized collector summary.
+3. Fully close Elgato Stream Deck; check Task Manager or Activity Monitor if necessary.
+4. Re-run the platform installer to rebuild and restart the service.
+5. Inspect the log paths listed above. Do not share agent data directories or credentials in an issue.

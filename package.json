@@ -1,6 +1,6 @@
 {
   "name": "neo-agent-deck",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Turn a Stream Deck Neo into a live Claude Code, Codex, and OpenCode agent console.",
   "type": "module",
   "private": true,
@@ -23,23 +23,26 @@
     "opencode",
     "agent",
     "hid",
-    "macos"
+    "macos",
+    "windows"
   ],
   "engines": {
-    "node": ">=20.12"
+    "node": ">=22.13"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.json",
     "check": "npm run build && tsc -p tsconfig.test.json && npm test",
     "dev": "tsx src/index.ts",
     "doctor": "tsx scripts/doctor.ts",
     "install:mac": "bash scripts/install-macos.sh",
+    "install:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows.ps1",
     "preview": "tsx scripts/preview.ts",
     "preview:docs": "tsx scripts/preview.ts --readme",
     "setup": "tsx scripts/setup.ts",
-    "preview:live": "tsx scripts/preview.ts --live /tmp/neo-agent-deck-live.png",
+    "preview:live": "tsx scripts/preview.ts --live",
     "status": "tsx scripts/status.ts",
     "uninstall:mac": "bash scripts/uninstall-macos.sh",
+    "uninstall:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-windows.ps1",
     "start": "node dist/src/index.js",
     "test": "vitest run",
     "test:watch": "vitest"

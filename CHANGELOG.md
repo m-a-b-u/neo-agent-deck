@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-16
+
+### Added
+
+- First-class Windows 10+ support with a no-admin per-user installer,
+  hidden login supervisor, log files, safe update path, and uninstaller.
+- Native and WSL-aware backend discovery through `CLAUDE_CONFIG_DIR`,
+  `CODEX_HOME`, and `OPENCODE_DATA_HOME`.
+- Cross-platform Claude authentication from the existing environment,
+  macOS Keychain, or Claude credentials file.
+- macOS and Windows CI on Node.js 22 and 24, including a real Windows
+  login-service install/uninstall smoke test.
+- A new professional README image set generated deterministically with the
+  production key and InfoBar renderer.
+
+### Changed
+
+- OpenCode now uses Node's built-in read-only SQLite API, removing the external
+  `sqlite3` command requirement and making the collector portable to Windows.
+- The minimum Node.js version is now 22.13 so every supported runtime includes
+  the built-in SQLite collector used by OpenCode.
+- Setup, diagnostics, privacy notes, and troubleshooting now cover macOS,
+  native Windows, and Windows with agent data in WSL.
+
 ## [0.2.1] - 2026-07-16
 
 ### Added
