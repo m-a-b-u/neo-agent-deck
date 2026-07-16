@@ -32,15 +32,17 @@ const snapshot: DashboardSnapshot = {
 
 describe("Neo rendering", () => {
   it("renders native-size RGBA status and usage buffers", async () => {
-    const buffers = await Promise.all([
-      renderProviderKey(snapshot.providers.claude),
-      renderUsageKey(snapshot.providers.opencode.usage),
-      renderSummaryKey(snapshot),
-      renderInfoKey(3, 4),
-      renderBlankKey()
-    ]);
+    // Production renders the small displays sequentially. Matching that path
+    // avoids artificial contention during Sharp's first Windows font scan.
+    const buffers = [
+      await renderProviderKey(snapshot.providers.claude),
+      await renderUsageKey(snapshot.providers.opencode.usage),
+      await renderSummaryKey(snapshot),
+      await renderInfoKey(3, 4),
+      await renderBlankKey()
+    ];
     for (const buffer of buffers) expect(buffer.length).toBe(96 * 96 * 4);
-  }, 15_000);
+  }, 30_000);
 
   it("renders every configured InfoBar view at 248x58 RGBA", async () => {
     for (let page = 0; page < DEFAULT_CONFIG.infoBar.length; page += 1) {
