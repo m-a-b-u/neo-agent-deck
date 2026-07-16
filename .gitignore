@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+
+# Live preview output (npm run preview:live writes to /tmp/neo-agent-deck-live.png);
+# keep any stray copies untracked, but never ignore the committed docs preview.
+neo-agent-deck-live.png
+/tmp/
+!docs/neo-agent-deck-preview.png
