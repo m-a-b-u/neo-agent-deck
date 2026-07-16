@@ -73,7 +73,9 @@ export async function renderUsageKey(usage: UsageSnapshot): Promise<Buffer> {
     ? "data unavailable"
     : isQuota ? `${label} used` : `${label} tokens`;
   const width = isQuota ? Math.round(70 * Number(primary?.percent) / 100) : 70;
-  const footer = usage.provider === "opencode" ? `${formatCurrency(usage.costUsd || 0)} / 7d` : subtitle;
+  const footer = usage.error
+    ? (usage.windows.length ? "stale · tap refresh" : "data unavailable")
+    : usage.provider === "opencode" ? `${formatCurrency(usage.costUsd || 0)} / 7d` : subtitle;
   return svgToRgba(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" rx="15" fill="${brand.background}"/><circle cx="14" cy="14" r="4" fill="${brand.accent}"/><text x="48" y="25" text-anchor="middle" fill="#f7fafc" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="800">${brand.name}</text><text x="48" y="59" text-anchor="middle" fill="${brand.accent}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="24" font-weight="800">${escapeXml(headline)}</text><rect x="13" y="69" width="70" height="6" rx="3" fill="#ffffff24"/><rect x="13" y="69" width="${Math.max(0, Math.min(70, width))}" height="6" rx="3" fill="${brand.accent}"/><text x="48" y="88" text-anchor="middle" fill="#bdc8d6" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9">${escapeXml(footer)}</text></svg>`, KEY_SIZE, KEY_SIZE);
 }
 
@@ -101,8 +103,10 @@ async function usageBar(usage: UsageSnapshot): Promise<Buffer> {
   const brand = brands[usage.provider];
   const first = usage.windows[0] || { label: "--", value: 0, resetsAt: null };
   const second = usage.windows[1] || first;
-  const caption = usage.provider === "opencode" ? "local token usage" : "live plan usage";
-  return svgToRgba(`<svg xmlns="http://www.w3.org/2000/svg" width="248" height="58"><rect width="248" height="58" rx="9" fill="${brand.background}"/><circle cx="13" cy="12" r="4" fill="${brand.accent}"/><text x="23" y="17" fill="#f5f7fb" font-family="-apple-system,sans-serif" font-size="13" font-weight="900">${brand.name}</text><text x="94" y="17" fill="#aeb9c8" font-family="-apple-system,sans-serif" font-size="9">${caption}</text>${usageMetric(12, 30, first, brand.accent)}${usageMetric(134, 30, second, brand.accent)}</svg>`, BAR_WIDTH, BAR_HEIGHT);
+  const caption = usage.error
+    ? (usage.windows.length ? "last known · refresh failed" : "data unavailable")
+    : usage.provider === "opencode" ? "local token usage" : "live plan usage";
+  return svgToRgba(`<svg xmlns="http://www.w3.org/2000/svg" width="248" height="58"><rect width="248" height="58" rx="9" fill="${brand.background}"/><circle cx="13" cy="12" r="4" fill="${brand.accent}"/><text x="23" y="17" fill="#f5f7fb" font-family="-apple-system,sans-serif" font-size="13" font-weight="900">${brand.name}</text><text x="236" y="17" text-anchor="end" fill="#aeb9c8" font-family="-apple-system,sans-serif" font-size="8">${caption}</text>${usageMetric(12, 30, first, brand.accent)}${usageMetric(134, 30, second, brand.accent)}</svg>`, BAR_WIDTH, BAR_HEIGHT);
 }
 
 function usageMetric(x: number, y: number, window: UsageWindow, accent: string): string {
@@ -115,7 +119,7 @@ function usageMetric(x: number, y: number, window: UsageWindow, accent: string):
 }
 
 async function sessionsBar(snapshot: DashboardSnapshot): Promise<Buffer> {
-  return svgToRgba(`<svg xmlns="http://www.w3.org/2000/svg" width="248" height="58"><rect width="248" height="58" rx="9" fill="#171b2d"/><text x="13" y="19" fill="#e8ecff" font-family="-apple-system,sans-serif" font-size="13" font-weight="900">ALL AGENTS</text><text x="97" y="18" fill="#8e9bb0" font-family="-apple-system,sans-serif" font-size="7">Claude · Codex · OpenCode</text>${counter(18, snapshot.openCount, "OPEN", "#71c7ff")}${counter(96, snapshot.workingCount, "WORK", "#34d399")}${counter(174, snapshot.attentionCount, "NEED YOU", "#ffb020")}</svg>`, BAR_WIDTH, BAR_HEIGHT);
+  return svgToRgba(`<svg xmlns="http://www.w3.org/2000/svg" width="248" height="58"><rect width="248" height="58" rx="9" fill="#171b2d"/><text x="13" y="19" fill="#e8ecff" font-family="-apple-system,sans-serif" font-size="13" font-weight="900">ALL AGENTS</text><text x="235" y="18" text-anchor="end" fill="#8e9bb0" font-family="-apple-system,sans-serif" font-size="7">Claude · Codex · OpenCode</text>${counter(18, snapshot.openCount, "OPEN", "#71c7ff")}${counter(96, snapshot.workingCount, "WORK", "#34d399")}${counter(174, snapshot.attentionCount, "NEED YOU", "#ffb020")}</svg>`, BAR_WIDTH, BAR_HEIGHT);
 }
 
 function counter(x: number, value: number, label: string, color: string): string {

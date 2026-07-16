@@ -126,7 +126,7 @@ export class ClaudeCollector {
         headers: {
           Authorization: `Bearer ${token}`,
           "anthropic-beta": "oauth-2025-04-20",
-          "user-agent": "neo-agent-deck/0.2"
+          "user-agent": "neo-agent-deck/0.2.1"
         },
         signal: AbortSignal.timeout(10_000)
       });

@@ -43,7 +43,7 @@ npm run setup -- --reset   # same as --default
 
 The setup walks the 8 physical keys in order (keys 0–3 are the top row, 4–7 the bottom row, left to right), then asks for the InfoBar page rotation, the resting page, and brightness. Press Enter at any prompt to keep the current value. Restart the service afterwards to apply changes.
 
-If the file is missing or invalid, Neo Agent Deck silently falls back to the default configuration — a broken config can never prevent startup.
+If the file is missing or unreadable, Neo Agent Deck silently uses the default configuration. Invalid top-level fields fall back individually; an unknown entry in an otherwise valid eight-key layout becomes a safe blank key. A broken config therefore cannot prevent startup.
 
 ### Config file shape
 

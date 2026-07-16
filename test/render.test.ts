@@ -88,6 +88,21 @@ describe("Neo rendering", () => {
     expect(empty.equals(full)).toBe(false);
   });
 
+  it("visually marks stale usage instead of presenting it as live", async () => {
+    const live = usage("codex");
+    const stale: UsageSnapshot = { ...live, error: "backend unavailable" };
+    expect((await renderUsageKey(live)).equals(await renderUsageKey(stale))).toBe(false);
+    expect((await renderInfoBar(snapshot, 1, DEFAULT_CONFIG)).equals(
+      await renderInfoBar({
+        ...snapshot,
+        providers: {
+          ...snapshot.providers,
+          codex: { ...snapshot.providers.codex, usage: stale }
+        }
+      }, 1, DEFAULT_CONFIG)
+    )).toBe(false);
+  });
+
   it("formats token totals for the small display", () => {
     expect(formatCompactNumber(473_000)).toBe("473K");
     expect(formatCompactNumber(5_180_000)).toBe("5.18M");

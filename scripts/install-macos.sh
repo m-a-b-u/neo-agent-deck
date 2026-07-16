@@ -12,7 +12,7 @@ npm run build
 mkdir -p "$APP_DIR" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 rsync -a --delete --exclude node_modules --exclude .git --exclude test --exclude coverage "$ROOT/" "$APP_DIR/"
 cd "$APP_DIR"
-npm install --omit=dev --ignore-scripts=false
+npm ci --omit=dev --ignore-scripts=false
 
 pkill -x "Stream Deck" 2>/dev/null || true
 launchctl bootout "gui/$UID/com.neo-agent-deck" 2>/dev/null || true

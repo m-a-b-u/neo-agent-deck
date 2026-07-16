@@ -1,6 +1,6 @@
 {
   "name": "neo-agent-deck",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Turn a Stream Deck Neo into a live Claude Code, Codex, and OpenCode agent console.",
   "type": "module",
   "private": true,
@@ -8,12 +8,12 @@
   "author": "Manuel Burgschachner",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/neo-agent-deck.git"
+    "url": "git+https://github.com/m-a-b-u/neo-agent-deck.git"
   },
   "bugs": {
-    "url": "https://github.com/OWNER/neo-agent-deck/issues"
+    "url": "https://github.com/m-a-b-u/neo-agent-deck/issues"
   },
-  "homepage": "https://github.com/OWNER/neo-agent-deck#readme",
+  "homepage": "https://github.com/m-a-b-u/neo-agent-deck#readme",
   "keywords": [
     "stream-deck",
     "stream-deck-neo",
@@ -35,6 +35,7 @@
     "doctor": "tsx scripts/doctor.ts",
     "install:mac": "bash scripts/install-macos.sh",
     "preview": "tsx scripts/preview.ts",
+    "preview:docs": "tsx scripts/preview.ts --readme",
     "setup": "tsx scripts/setup.ts",
     "preview:live": "tsx scripts/preview.ts --live /tmp/neo-agent-deck-live.png",
     "status": "tsx scripts/status.ts",

@@ -111,11 +111,6 @@ async function isOpenCodeRunning(): Promise<boolean> {
 }
 
 const sessionsSql = `
-WITH latest AS (
-  SELECT session_id, max(time_created) AS message_at
-  FROM message
-  GROUP BY session_id
-)
 SELECT
   s.id,
   s.title,
@@ -126,8 +121,13 @@ SELECT
   json_type(m.data, '$.error') AS error_type,
   m.time_created AS message_at
 FROM session s
-LEFT JOIN latest l ON l.session_id = s.id
-LEFT JOIN message m ON m.session_id = l.session_id AND m.time_created = l.message_at
+LEFT JOIN message m ON m.id = (
+  SELECT id
+  FROM message
+  WHERE session_id = s.id
+  ORDER BY time_created DESC, id DESC
+  LIMIT 1
+)
 WHERE s.time_archived IS NULL
 ORDER BY s.time_updated DESC
 LIMIT 50;

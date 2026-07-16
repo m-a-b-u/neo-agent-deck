@@ -1,12 +1,25 @@
-# Neo Agent Deck
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="Neo Agent Deck dashboard with Claude, Codex, OpenCode, usage, and all-agent status" width="760">
+</p>
 
-[![CI](https://github.com/OWNER/neo-agent-deck/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/neo-agent-deck/actions/workflows/ci.yml)
+<h1 align="center">Neo Agent Deck</h1>
 
-Neo Agent Deck turns an Elgato Stream Deck Neo into a live physical console for Claude Code, Codex, and OpenCode. It uses the Neo's eight LCD keys, 248×58 InfoBar, and both touch points directly through USB HID—no cloud service and no API keys stored by the app.
+<p align="center">
+  A live, glanceable agent console for the Elgato Stream Deck Neo.<br>
+  Claude Code, Codex, and OpenCode status and usage — directly on your desk.
+</p>
 
-![Neo Agent Deck preview](docs/neo-agent-deck-preview.png)
+<p align="center">
+  <a href="https://github.com/m-a-b-u/neo-agent-deck/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/m-a-b-u/neo-agent-deck/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/m-a-b-u/neo-agent-deck/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/m-a-b-u/neo-agent-deck?display_name=tag"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-7c3aed"></a>
+  <img alt="macOS only" src="https://img.shields.io/badge/platform-macOS-111827?logo=apple">
+  <img alt="Node.js 20.12 or newer" src="https://img.shields.io/badge/Node.js-20.12%2B-339933?logo=nodedotjs&logoColor=white">
+</p>
 
-## Layout
+Neo Agent Deck turns the Neo's eight LCD keys, 248×58 InfoBar, and two touch points into one dashboard. It runs locally over USB HID, reconnects automatically, and keeps working even when the Neo is temporarily unplugged.
+
+## What you see
 
 ```text
 ┌────────────┬────────────┬────────────┬────────────┐
@@ -16,86 +29,124 @@ Neo Agent Deck turns an Elgato Stream Deck Neo into a live physical console for 
 │ Claude     │ Codex      │ OpenCode   │     ⓘ      │
 │ usage      │ usage      │ usage      │ InfoBar    │
 └────────────┴────────────┴────────────┴────────────┘
-       ◀ touch       248×58 InfoBar       touch ▶
+        ◀ touch       248×58 InfoBar       touch ▶
 ```
 
-The bottom-right info key and right touch point cycle the InfoBar:
+| State | Meaning | Display |
+| --- | --- | --- |
+| **WORKING** | At least one session is actively processing | Green |
+| **IDLE** | No active or unacknowledged session | Gray |
+| **NEED YOU** | A turn completed, aborted, errored, or awaits attention | Amber |
 
-1. Claude 5-hour and weekly usage
-2. Codex rate-limit usage
-3. OpenCode 24-hour and 7-day token usage
-4. Total open, working, and attention-needed sessions
+Tap an amber provider key to acknowledge its completed sessions. Tap **All Agents** for the combined view. The info key and right touch point move forward through the InfoBar pages; the left touch point moves backward.
 
-The resting screen is All Agents, so the next four info-key presses show Claude, Codex, OpenCode, then All Agents. The left touch point cycles backward. Status colors are green for working, gray for idle, and amber when a completed/aborted turn needs attention. Tap an amber provider key to acknowledge all completed sessions for that provider.
+<p align="center">
+  <img src="docs/images/infobar-pages.png" alt="Claude, Codex, OpenCode, and all-agent InfoBar pages" width="720">
+</p>
 
-## Data sources
+The default pages are:
 
-- Claude status comes from live Claude Code session files; plan usage comes from Anthropic's usage endpoint with the existing Claude Code Keychain sign-in.
-- Codex status and rate limits come from the structured lifecycle and rate-limit events Codex writes under `CODEX_HOME` (normally `~/.codex`).
-- OpenCode status, tokens, and cost come from its local SQLite database. Usage is calculated from assistant messages for the last 24 hours and seven days.
-- Historical idle sessions are not counted as open. The first provider row is aggregated, so a provider shows `NEED YOU` if any new completion is still unacknowledged.
+- **Claude:** 5-hour and 7-day plan usage.
+- **Codex:** available rate-limit windows written by Codex.
+- **OpenCode:** local token totals for 24 hours and 7 days.
+- **All Agents:** open, working, and attention-needed session totals.
 
-## Why direct HID?
+If a backend refresh fails, the deck labels retained values as **stale** instead of presenting them as live.
 
-Elgato's public plugin SDK does not expose the Neo InfoBar or touch points to third-party plugins. Neo Agent Deck uses Elgato's [documented Neo HID protocol](https://docs.elgato.com/streamdeck/hid/stream-deck-neo/) and the MIT-licensed [Node Stream Deck library](https://github.com/Julusian/node-elgato-stream-deck) instead. Because one process must own the device, the Elgato Stream Deck app must be closed while Neo Agent Deck runs.
+## Quick start
 
-## Configuration
-
-The per-key layout is configurable. Run the interactive setup to generate or edit your layout:
-
-```bash
-npm run setup
-```
-
-See [docs/SETUP.md](docs/SETUP.md) for the full configuration reference.
-
-## Development
-
-Requirements: macOS, Node.js 20.12+, and whichever of Claude Code, Codex, or OpenCode you want to monitor. The Neo can remain disconnected during development; the service waits quietly and reconnects automatically.
+Requirements: macOS, Node.js 20.12+, and an Elgato Stream Deck Neo. Install at least one supported agent locally; unavailable agents simply show no data.
 
 ```bash
-npm install
+git clone https://github.com/m-a-b-u/neo-agent-deck.git
+cd neo-agent-deck
+npm ci
 npm run doctor
-npm run status
 npm run preview:live
 npm run dev
 ```
 
-Run checks:
+Quit the Elgato Stream Deck app before `npm run dev`: only one process can own the Neo's USB HID interface at a time. The device can remain disconnected while you set up or test the project.
 
-```bash
-npm run check
-```
-
-Install as a macOS login service:
+When the foreground run looks right, install the per-user macOS login service:
 
 ```bash
 npm run install:mac
 ```
 
-The installer does not ask for an administrator password. It installs only for the current user and starts automatically at login. If the Neo is unplugged, the process remains idle instead of repeatedly crashing. Logs are written to `~/Library/Logs/NeoAgentDeck.log` and `~/Library/Logs/NeoAgentDeck.error.log`.
+No administrator password is required. The installer builds the app, copies it to `~/.local/share/neo-agent-deck`, closes Elgato's Stream Deck app, and starts `com.neo-agent-deck` through `launchd`.
 
-To remove the background service and return the device to Elgato's app:
+## Data sources and privacy
+
+| Provider | Status source | Usage source | Network from Neo Agent Deck |
+| --- | --- | --- | --- |
+| Claude Code | Live files in `~/.claude` plus the owning process | Anthropic usage endpoint using the existing Claude Code OAuth token from macOS Keychain | Anthropic usage request only |
+| Codex | Lifecycle events in `~/.codex/sessions` | Rate-limit events in the same local session files | None |
+| OpenCode | Latest message metadata in the local SQLite database | Aggregated token and cost fields in the same database | None |
+
+Neo Agent Deck has no telemetry, account system, or hosted backend. It never writes the Claude OAuth token to disk. Session content is not displayed or persisted by the app; only lifecycle, timestamp, usage, and aggregate fields affect the dashboard.
+
+## Configuration
+
+The default layout works immediately. To change any key, the InfoBar rotation, the resting page, or brightness, run:
+
+```bash
+npm run setup
+```
+
+Configuration is stored in `~/.neo-agent-deck/config.json`; acknowledgement and page state live beside it in `state.json`. See the [setup guide](docs/SETUP.md) for every module and example layouts.
+
+Useful non-interactive commands:
+
+```bash
+npm run setup -- --print    # show the effective configuration
+npm run setup -- --default  # restore the default layout
+npm run status              # sanitized live backend summary; no Neo required
+npm run doctor              # device, sign-in, files, database, and backend checks
+npm run preview:live        # render live data to /tmp/neo-agent-deck-live.png
+```
+
+## How it works
+
+```mermaid
+flowchart LR
+  C["Claude Code files + Keychain"] --> D["Local collectors"]
+  X["Codex session events"] --> D
+  O["OpenCode SQLite"] --> D
+  D --> S["Normalized session + usage state"]
+  S --> R["96×96 keys + 248×58 InfoBar renderer"]
+  R --> N["Stream Deck Neo over USB HID"]
+```
+
+The app polls local agent state every three seconds. Claude plan usage is cached for five minutes unless you tap a usage key. Device disconnects, malformed session lines, missing backends, and temporary collector failures are isolated so the service keeps running and reconnects.
+
+Direct HID is intentional: Elgato's plugin surface does not currently expose every Neo control needed by this dashboard. Neo Agent Deck uses the Neo HID implementation provided by the MIT-licensed `@elgato-stream-deck/node` library.
+
+## Troubleshooting
+
+- **Elgato's normal profile is still visible:** fully quit the Elgato Stream Deck app, then restart Neo Agent Deck.
+- **A backend says unavailable:** run `npm run doctor`, then `npm run status` for the exact sanitized error.
+- **The Neo is unplugged:** nothing is wrong; the service waits at low activity and reconnects when the device returns.
+- **The installed service needs a restart:** run `launchctl kickstart -k gui/$UID/com.neo-agent-deck`.
+- **Logs:** inspect `~/Library/Logs/NeoAgentDeck.log` and `~/Library/Logs/NeoAgentDeck.error.log`.
+
+To remove the login service and hand control back to Elgato:
 
 ```bash
 npm run uninstall:mac
 open -a "Elgato Stream Deck"
 ```
 
-## Troubleshooting
+## Development
 
-- If the keys show Elgato's normal profile, quit the Elgato Stream Deck app; it and Neo Agent Deck cannot own the USB device simultaneously.
-- Run `npm run doctor` to check the Neo connection and all three backend data sources.
-- Run `npm run status` to print the sanitized live state and usage values without requiring the Neo.
-- Restart the installed service with `launchctl kickstart -k gui/$UID/com.neo-agent-deck`.
+```bash
+npm ci
+npm run check          # build, test typecheck, and unit tests
+npm run preview:docs   # regenerate the README product images
+```
 
-## Privacy
-
-- Claude usage is fetched from Anthropic's usage endpoint with the existing Claude Code OAuth token read from macOS Keychain. The token is never written by Neo Agent Deck.
-- Codex usage and state are read from local session files.
-- OpenCode usage and state are read from its local SQLite database; prompts and message text are never read or displayed.
-- No telemetry is collected.
+CI runs the full check on Node.js 20 and 22 for macOS. Releases are created from `v*` tags only after the same checks pass.
 
 ## License
 
-MIT. Stream Deck is a trademark of Elgato/Corsair. This project is independent and is not endorsed by Elgato, Anthropic, or OpenAI.
+[MIT](LICENSE) © Manuel Burgschachner. Stream Deck is a trademark of Elgato/Corsair. Claude, Codex, and OpenCode belong to their respective owners. This independent project is not endorsed by Elgato, Anthropic, OpenAI, or the OpenCode maintainers.
