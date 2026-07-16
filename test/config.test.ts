@@ -53,14 +53,16 @@ describe("deck config", () => {
     }
   });
 
-  it("round-trips through saveConfig with 0600 permissions", () => {
+  it("round-trips through saveConfig and restricts POSIX permissions", () => {
     const directory = tempDir();
     try {
       const config = { ...DEFAULT_CONFIG, brightness: 55, restingPage: "claude" as const };
       saveConfig(config, directory);
       expect(loadConfig(directory)).toEqual(config);
-      const mode = fs.statSync(path.join(directory, "config.json")).mode & 0o777;
-      expect(mode).toBe(0o600);
+      if (process.platform !== "win32") {
+        const mode = fs.statSync(path.join(directory, "config.json")).mode & 0o777;
+        expect(mode).toBe(0o600);
+      }
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
