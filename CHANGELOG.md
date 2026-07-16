@@ -13,14 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First-class Windows 10+ support with a no-admin per-user installer,
   hidden login supervisor, log files, safe update path, and uninstaller.
+- Linux support with the dependency's official desktop-user udev rule, a
+  restart-on-failure systemd user service, journal logs, and uninstaller.
+- Three-step guided installers (`./install.sh` and `.\install.cmd`) that open a
+  streamlined terminal UI before installing the platform service.
 - Native and WSL-aware backend discovery through `CLAUDE_CONFIG_DIR`,
   `CODEX_HOME`, and `OPENCODE_DATA_HOME`.
 - Cross-platform Claude authentication from the existing environment,
   macOS Keychain, or Claude credentials file.
-- macOS and Windows CI on Node.js 22 and 24, including a real Windows
-  login-service install/uninstall smoke test.
-- A new professional README image set generated deterministically with the
-  production key and InfoBar renderer.
+- macOS, Windows, and Linux CI on Node.js 22 and 24, including Windows and
+  Linux service install/uninstall smoke tests.
+- A new grid-aligned professional README image set generated deterministically
+  with the production key and InfoBar renderer.
 
 ### Changed
 
@@ -29,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The minimum Node.js version is now 22.13 so every supported runtime includes
   the built-in SQLite collector used by OpenCode.
 - Setup, diagnostics, privacy notes, and troubleshooting now cover macOS,
-  native Windows, and Windows with agent data in WSL.
+  Linux, native Windows, and Windows with agent data in WSL.
 
 ## [0.2.1] - 2026-07-16
 

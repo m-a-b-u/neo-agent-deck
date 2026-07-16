@@ -65,12 +65,17 @@ if (!process.stdin.isTTY) {
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 try {
   const current = loadConfig();
-  console.log("Neo Agent Deck setup — press Enter to keep the value shown in [brackets].\n");
+  console.log("┌─────────────────────────────────────────────┐");
+  console.log("│          NEO AGENT DECK · SETUP             │");
+  console.log("└─────────────────────────────────────────────┘");
+  console.log("\nCurrent layout (also the recommended default on a fresh install):");
+  printLayout(current.keys);
 
-  const keys = await promptKeys(rl, current.keys);
-  const infoBar = await promptInfoBar(rl, current.infoBar);
-  const restingPage = await promptRestingPage(rl, infoBar, current.restingPage);
-  const brightness = await promptBrightness(rl, current.brightness);
+  const customize = await promptYesNo(rl, "Customize keys, InfoBar, and brightness now? [y/N]: ");
+  const keys = customize ? await promptKeys(rl, current.keys) : [...current.keys];
+  const infoBar = customize ? await promptInfoBar(rl, current.infoBar) : [...current.infoBar];
+  const restingPage = customize ? await promptRestingPage(rl, infoBar, current.restingPage) : current.restingPage;
+  const brightness = customize ? await promptBrightness(rl, current.brightness) : current.brightness;
 
   const cfg: DeckConfig = { brightness, keys, infoBar, restingPage };
   saveConfig(cfg);
@@ -78,6 +83,15 @@ try {
   printResult(cfg);
 } finally {
   rl.close();
+}
+
+async function promptYesNo(io: Interface, question: string): Promise<boolean> {
+  for (;;) {
+    const answer = (await io.question(question)).trim().toLowerCase();
+    if (!answer || answer === "n" || answer === "no") return false;
+    if (answer === "y" || answer === "yes") return true;
+    console.log("  Enter y for yes or n for no.");
+  }
 }
 
 async function promptKeys(io: Interface, current: KeyModule[]): Promise<KeyModule[]> {
@@ -175,7 +189,9 @@ function printResult(cfg: DeckConfig): void {
   console.log(JSON.stringify(cfg, null, 2));
   const restart = process.platform === "win32"
     ? "npm run install:win"
-    : "launchctl kickstart -k gui/$UID/com.neo-agent-deck";
+    : process.platform === "linux"
+      ? "systemctl --user restart neo-agent-deck.service"
+      : "launchctl kickstart -k gui/$UID/com.neo-agent-deck";
   console.log(`\nRestart npm run dev, or run ${restart}, to apply.`);
 }
 
@@ -185,8 +201,9 @@ function printHelp(): void {
 Usage: npm run setup [-- <flag>]
 
 Interactive mode (default, requires a terminal):
-  Walks through the 8 key assignments, the InfoBar rotation, the resting
-  page, and brightness, then writes config.json to ${configDir()}.
+  Shows the current/recommended layout for one-key acceptance, or opens the
+  full key, InfoBar, resting-page, and brightness editor, then writes
+  config.json to ${configDir()}.
 
 Flags:
   --print     Print the current effective config as JSON and exit.

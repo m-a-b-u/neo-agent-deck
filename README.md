@@ -10,14 +10,50 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/m-a-b-u/neo-agent-deck/actions/workflows/ci.yml"><img alt="macOS and Windows CI" src="https://github.com/m-a-b-u/neo-agent-deck/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/m-a-b-u/neo-agent-deck/actions/workflows/ci.yml"><img alt="macOS, Windows, and Linux CI" src="https://github.com/m-a-b-u/neo-agent-deck/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/m-a-b-u/neo-agent-deck/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/m-a-b-u/neo-agent-deck?display_name=tag"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-7c3aed"></a>
-  <img alt="macOS and Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-111827?logo=apple">
+  <img alt="macOS, Windows, and Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-111827">
   <img alt="Node.js 22.13 or newer" src="https://img.shields.io/badge/Node.js-22.13%2B-339933?logo=nodedotjs&logoColor=white">
 </p>
 
 Neo Agent Deck turns the Neo's eight LCD keys, 248×58 InfoBar, and two touch points into one dashboard. It runs locally over USB, reconnects automatically, and safely waits when the device is unplugged.
+
+## Install in three steps
+
+Requirements: Git, [Node.js 22.13+](https://nodejs.org/), and macOS, Windows 10+, or Linux with a systemd user session. The Neo can stay unplugged during setup.
+
+1. Clone the repository.
+
+   ```bash
+   git clone https://github.com/m-a-b-u/neo-agent-deck.git
+   ```
+
+2. Enter the project.
+
+   ```bash
+   cd neo-agent-deck
+   ```
+
+3. Start the guided installer.
+
+   macOS / Linux:
+
+   ```bash
+   ./install.sh
+   ```
+
+   Windows PowerShell:
+
+   ```powershell
+   .\install.cmd
+   ```
+
+The terminal UI shows the recommended 4×2 layout first. Press Enter to accept it, or choose `y` to customize every key, InfoBar page, resting page, and brightness. The installer then builds a private per-user copy and enables automatic startup.
+
+macOS and Windows need no administrator password. Linux asks for `sudo` only if HID runtime packages or its Stream Deck USB permission rule are missing; the application and service still run as your user.
+
+Sign in to at least one supported agent locally. Providers that are not installed or signed in remain safely unavailable without blocking the others.
 
 ## The default dashboard
 
@@ -50,37 +86,6 @@ Tap an amber provider key to acknowledge completed sessions. Tap **All Agents** 
 
 The four pages show Claude's 5-hour and 7-day plan usage, Codex rate-limit windows, OpenCode local token totals, and combined session counts. If a refresh fails, retained values are marked **stale** instead of appearing live.
 
-## Quick start
-
-You need macOS or Windows 10+, [Node.js 22.13+](https://nodejs.org/), and an Elgato Stream Deck Neo. The Neo may stay disconnected during setup. Install at least one supported agent locally; missing providers simply show no data.
-
-```bash
-git clone https://github.com/m-a-b-u/neo-agent-deck.git
-cd neo-agent-deck
-npm ci
-npm run doctor
-npm run preview:live
-npm run dev
-```
-
-Close Elgato's Stream Deck app before `npm run dev`: only one process can own the Neo's USB interface.
-
-When the foreground run looks right, install the login service for your operating system:
-
-**macOS**
-
-```bash
-npm run install:mac
-```
-
-**Windows PowerShell**
-
-```powershell
-npm run install:win
-```
-
-Neither installer needs administrator privileges. Both build a private per-user installation, close the Elgato app, start Neo Agent Deck immediately, and launch it automatically after sign-in.
-
 ## Data sources and privacy
 
 | Provider | Status and usage source | Network used by Neo Agent Deck |
@@ -91,7 +96,7 @@ Neither installer needs administrator privileges. Both build a private per-user 
 
 Neo Agent Deck has no telemetry, hosted backend, or account system. It does not persist OAuth tokens or session content. Only lifecycle, timestamps, usage, and aggregate values affect the display. OpenCode uses Node's built-in read-only SQLite support; no separate `sqlite3` program is required.
 
-Default data locations are home-relative on both platforms:
+Default data locations are home-relative on every platform:
 
 | Provider | Default | Override |
 | --- | --- | --- |
@@ -103,7 +108,7 @@ For the simplest Windows experience, run the agents natively on Windows. If thei
 
 ## Configuration
 
-The default layout works immediately. To change keys, InfoBar rotation, resting page, or brightness, run:
+The guided installer opens this setup automatically. To change keys, InfoBar rotation, resting page, or brightness later, run:
 
 ```bash
 npm run setup
@@ -144,8 +149,11 @@ Direct USB access is intentional: Neo Agent Deck uses the Neo HID implementation
 - **The Neo is unplugged:** the service waits and reconnects automatically.
 - **macOS restart:** `launchctl kickstart -k gui/$UID/com.neo-agent-deck`.
 - **Windows restart:** run `npm run install:win` again; it replaces and restarts the per-user service.
+- **Linux restart:** `systemctl --user restart neo-agent-deck.service`.
 - **macOS logs:** `~/Library/Logs/NeoAgentDeck.log` and `NeoAgentDeck.error.log`.
 - **Windows logs:** `~/.neo-agent-deck/logs/NeoAgentDeck.log` and `NeoAgentDeck.error.log`.
+- **Linux logs:** `journalctl --user -u neo-agent-deck.service -f`.
+- **Linux USB permission denied:** re-run `npm run install:linux`, then unplug and reconnect the Neo once.
 
 To uninstall and return control to Elgato:
 
@@ -161,17 +169,25 @@ npm run uninstall:win
 Start-Process "$env:ProgramFiles\Elgato\StreamDeck\StreamDeck.exe"
 ```
 
+```bash
+# Linux
+npm run uninstall:linux
+```
+
 Preferences and logs are kept so reinstalling does not discard your layout.
 
 ## Development
 
 ```bash
 npm ci
+npm run doctor        # sanitized device and backend checks
+npm run preview:live  # render current backend data without a Neo
+npm run dev           # run in the foreground
 npm run check          # build, test typecheck, and unit/integration tests
 npm run preview:docs   # regenerate all README product images
 ```
 
-CI checks macOS and Windows with Node.js 22 and 24. Tagged releases are published only after the same cross-platform matrix passes.
+On macOS or Windows, close Elgato Stream Deck before `npm run dev`; only one process can own the USB interface. CI checks macOS, Windows, and Linux with Node.js 22 and 24. Tagged releases are published only after the same cross-platform matrix and service-installer smoke tests pass.
 
 ## License
 

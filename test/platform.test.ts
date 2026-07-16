@@ -39,6 +39,7 @@ describe("cross-platform data paths", () => {
     expect(openCodeDataDirectory(env, "unused")).toBe(env.OPENCODE_DATA_HOME);
     expect(platformLabel("win32")).toBe("Windows");
     expect(platformLabel("darwin")).toBe("macOS");
+    expect(platformLabel("linux")).toBe("Linux");
     expect(wslDistributionFromPath("\\\\wsl.localhost\\Ubuntu-24.04\\home\\agent\\.claude")).toBe("Ubuntu-24.04");
     expect(wslDistributionFromPath("\\\\wsl$\\Debian\\home\\agent\\.codex")).toBe("Debian");
     expect(wslDistributionFromPath("C:\\Users\\agent\\.claude")).toBeNull();

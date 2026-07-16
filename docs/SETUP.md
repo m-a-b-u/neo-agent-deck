@@ -1,14 +1,26 @@
 # Neo Agent Deck setup guide
 
-This guide covers installation on macOS and Windows, backend discovery, the per-key layout, InfoBar rotation, and brightness.
+This guide covers installation on macOS, Windows, and Linux, backend discovery, the per-key layout, InfoBar rotation, and brightness.
 
 ## Prerequisites
 
-- macOS or Windows 10+.
+- macOS, Windows 10+, or Linux with a systemd user session.
 - Node.js 22.13 or newer (`node --version`).
 - An Elgato Stream Deck Neo. It may stay disconnected during setup.
 - At least one local Claude Code, Codex, or OpenCode installation.
-- Elgato Stream Deck must be closed while Neo Agent Deck controls the device. The installers close it automatically.
+- On macOS and Windows, Elgato Stream Deck must be closed while Neo Agent Deck controls the device. The installers close it automatically.
+
+## Recommended guided install
+
+The shortest path is exactly three terminal steps:
+
+```bash
+git clone https://github.com/m-a-b-u/neo-agent-deck.git
+cd neo-agent-deck
+./install.sh                 # macOS or Linux
+```
+
+Use `.\install.cmd` for the third command in Windows PowerShell. It launches the signed-in user's PowerShell with a one-process execution-policy bypass, checks Node.js, installs dependencies, opens the setup UI, and installs the matching login service. Press Enter in the UI to accept the recommended layout or choose `y` for the full editor.
 
 ## Try it in the foreground
 
@@ -60,9 +72,28 @@ npm run install:win     # replace/update and restart the installation
 npm run uninstall:win
 ```
 
+### Linux
+
+```bash
+npm run install:linux
+```
+
+The Linux installer builds and copies the app to `~/.local/share/neo-agent-deck` and creates `~/.config/systemd/user/neo-agent-deck.service`. The user service starts at desktop login and restarts automatically after a failure.
+
+Linux protects raw HID devices from unprivileged processes. The installer therefore checks the `libusb`/`libudev` runtime, copies the desktop-user udev rule shipped by `@elgato-stream-deck/node` into `/etc/udev/rules.d`, and reloads udev. Missing runtime packages and the rule are the only operations that may ask for `sudo`; the application itself never runs as root. Debian/Ubuntu, Fedora/RHEL, Arch, and openSUSE package families are detected automatically. Unplug and reconnect an already attached Neo once after the first install.
+
+```bash
+systemctl --user status neo-agent-deck.service
+systemctl --user restart neo-agent-deck.service
+journalctl --user -u neo-agent-deck.service -f
+npm run uninstall:linux
+```
+
+The uninstaller keeps `~/.neo-agent-deck` and the shared Stream Deck udev rule. Keeping the rule allows other user-session Stream Deck tools to access the device and makes reinstalling password-free.
+
 ## Windows and WSL
 
-Native Windows agent installations use the same defaults as macOS and need no special configuration:
+Native Windows agent installations use the same defaults as macOS and Linux and need no special configuration:
 
 - Claude Code: `%USERPROFILE%\.claude`
 - Codex: `%USERPROFILE%\.codex`
@@ -125,7 +156,7 @@ npm run setup -- --default # restore the recommended default
 npm run setup -- --reset   # alias for --default
 ```
 
-The eight physical keys are configured in viewing order: keys 0–3 are the top row and 4–7 the bottom row. Press Enter at any prompt to keep the displayed value. Restart or reinstall the service afterward to apply changes.
+The setup first shows the complete current layout. Press Enter to keep it, or answer `y` to edit it. In the full editor, the eight physical keys are configured in viewing order: keys 0–3 are the top row and 4–7 the bottom row. Press Enter at an individual prompt to keep its displayed value. Restart or reinstall the service afterward to apply changes.
 
 If the file is missing or unreadable, safe defaults apply. Invalid top-level fields fall back individually; an unknown key entry becomes a blank tile. A broken configuration cannot prevent startup.
 
@@ -219,6 +250,6 @@ If the device or data does not look right:
 
 1. Run `npm run doctor`.
 2. Run `npm run status` for a sanitized collector summary.
-3. Fully close Elgato Stream Deck; check Task Manager or Activity Monitor if necessary.
+3. On macOS or Windows, fully close Elgato Stream Deck; check Task Manager or Activity Monitor if necessary. On Linux, verify the udev rule and reconnect the device.
 4. Re-run the platform installer to rebuild and restart the service.
 5. Inspect the log paths listed above. Do not share agent data directories or credentials in an issue.

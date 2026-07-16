@@ -24,7 +24,8 @@
     "agent",
     "hid",
     "macos",
-    "windows"
+    "windows",
+    "linux"
   ],
   "engines": {
     "node": ">=22.13"
@@ -34,6 +35,7 @@
     "check": "npm run build && tsc -p tsconfig.test.json && npm test",
     "dev": "tsx src/index.ts",
     "doctor": "tsx scripts/doctor.ts",
+    "install:linux": "bash scripts/install-linux.sh",
     "install:mac": "bash scripts/install-macos.sh",
     "install:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows.ps1",
     "preview": "tsx scripts/preview.ts",
@@ -41,6 +43,7 @@
     "setup": "tsx scripts/setup.ts",
     "preview:live": "tsx scripts/preview.ts --live",
     "status": "tsx scripts/status.ts",
+    "uninstall:linux": "bash scripts/uninstall-linux.sh",
     "uninstall:mac": "bash scripts/uninstall-macos.sh",
     "uninstall:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-windows.ps1",
     "start": "node dist/src/index.js",

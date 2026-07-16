@@ -32,6 +32,7 @@ export function openCodeDatabaseFile(env: NodeJS.ProcessEnv = process.env, home 
 export function platformLabel(platform = process.platform): string {
   if (platform === "win32") return "Windows";
   if (platform === "darwin") return "macOS";
+  if (platform === "linux") return "Linux";
   return platform;
 }
 

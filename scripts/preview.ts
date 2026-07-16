@@ -35,21 +35,21 @@ if (readme) {
 async function writeHero(data: DashboardSnapshot, file: string): Promise<void> {
   const width = 1600;
   const height = 900;
-  const device = await renderDevice(data, DEFAULT_CONFIG.infoBar.indexOf("all"), 1.18);
+  const device = await renderDevice(data, DEFAULT_CONFIG.infoBar.indexOf("all"), 1.14);
   const background = svg(`
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
         <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#070912"/>
-          <stop offset="0.52" stop-color="#101426"/>
+          <stop offset="0" stop-color="#070a12"/>
+          <stop offset="0.58" stop-color="#101526"/>
           <stop offset="1" stop-color="#071018"/>
         </linearGradient>
         <radialGradient id="blue" cx="50%" cy="50%" r="50%">
-          <stop offset="0" stop-color="#38bdf8" stop-opacity=".22"/>
+          <stop offset="0" stop-color="#38bdf8" stop-opacity=".16"/>
           <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
         </radialGradient>
         <radialGradient id="violet" cx="50%" cy="50%" r="50%">
-          <stop offset="0" stop-color="#a78bfa" stop-opacity=".20"/>
+          <stop offset="0" stop-color="#a78bfa" stop-opacity=".17"/>
           <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
         </radialGradient>
         <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
@@ -58,35 +58,50 @@ async function writeHero(data: DashboardSnapshot, file: string): Promise<void> {
         </linearGradient>
       </defs>
       <rect width="1600" height="900" fill="url(#bg)"/>
-      <ellipse cx="1350" cy="160" rx="620" ry="500" fill="url(#violet)"/>
-      <ellipse cx="790" cy="870" rx="760" ry="430" fill="url(#blue)"/>
-      <g opacity=".16" stroke="#94a3b8" stroke-width="1">
-        <path d="M0 720 H1600"/><path d="M0 785 H1600"/><path d="M0 850 H1600"/>
-        <path d="M760 0 V900"/><path d="M900 0 V900"/><path d="M1040 0 V900"/>
-        <path d="M1180 0 V900"/><path d="M1320 0 V900"/><path d="M1460 0 V900"/>
+      <ellipse cx="1270" cy="230" rx="600" ry="490" fill="url(#violet)"/>
+      <ellipse cx="910" cy="880" rx="850" ry="380" fill="url(#blue)"/>
+      <g opacity=".10" stroke="#9fb0c7" stroke-width="1">
+        <path d="M80 0 V900"/><path d="M200 0 V900"/><path d="M320 0 V900"/><path d="M440 0 V900"/>
+        <path d="M560 0 V900"/><path d="M680 0 V900"/><path d="M800 0 V900"/><path d="M920 0 V900"/>
+        <path d="M1040 0 V900"/><path d="M1160 0 V900"/><path d="M1280 0 V900"/><path d="M1400 0 V900"/><path d="M1520 0 V900"/>
+        <path d="M0 80 H1600"/><path d="M0 160 H1600"/><path d="M0 240 H1600"/><path d="M0 320 H1600"/>
+        <path d="M0 400 H1600"/><path d="M0 480 H1600"/><path d="M0 560 H1600"/><path d="M0 640 H1600"/>
+        <path d="M0 720 H1600"/><path d="M0 800 H1600"/><path d="M0 880 H1600"/>
       </g>
-      <rect x="90" y="94" width="58" height="6" rx="3" fill="url(#line)"/>
-      <text x="90" y="142" fill="#b9c5d6" font-family="Arial,sans-serif" font-size="21" font-weight="700" letter-spacing="4">NEO AGENT DECK</text>
-      <text x="90" y="245" fill="#f8fafc" font-family="Arial,sans-serif" font-size="70" font-weight="800">
-        <tspan x="90" dy="0">Every agent.</tspan><tspan x="90" dy="78">One glance.</tspan>
+      <rect x="80" y="80" width="1440" height="1" fill="#ffffff" fill-opacity=".10"/>
+      <rect x="80" y="79" width="72" height="3" rx="1.5" fill="url(#line)"/>
+      <text x="80" y="126" fill="#c4cfde" font-family="Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="4">NEO AGENT DECK</text>
+      <text x="1520" y="125" text-anchor="end" fill="#65758c" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="2">STREAM DECK NEO · LOCAL USB</text>
+      <text x="80" y="246" fill="#f8fafc" font-family="Arial,sans-serif" font-size="68" font-weight="800">
+        <tspan x="80" dy="0">Every agent.</tspan><tspan x="80" dy="76">One glance.</tspan>
       </text>
-      <text x="94" y="444" fill="#9ba9bd" font-family="Arial,sans-serif" font-size="24">
-        <tspan x="94" dy="0">Claude Code, Codex and OpenCode.</tspan>
-        <tspan x="94" dy="37">Live status and usage on your desk.</tspan>
+      <text x="84" y="432" fill="#9eacc0" font-family="Arial,sans-serif" font-size="23">
+        <tspan x="84" dy="0">Claude Code, Codex and OpenCode.</tspan>
+        <tspan x="84" dy="36">Live status and usage on your desk.</tspan>
       </text>
-      <g transform="translate(92 560)">
-        <rect width="410" height="54" rx="27" fill="#ffffff" fill-opacity=".055" stroke="#ffffff" stroke-opacity=".12"/>
-        <circle cx="30" cy="27" r="6" fill="#34d399"/>
-        <text x="52" y="34" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="1.7">LOCAL  ·  PRIVATE  ·  LIVE</text>
+      <g transform="translate(80 544)">
+        <rect width="432" height="56" rx="12" fill="#0f1728" stroke="#ffffff" stroke-opacity=".13"/>
+        <circle cx="28" cy="28" r="6" fill="#34d399"/>
+        <text x="50" y="35" fill="#d1d9e6" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="1.8">LOCAL  ·  PRIVATE  ·  LIVE</text>
       </g>
-      <text x="94" y="779" fill="#65738a" font-family="Arial,sans-serif" font-size="16" letter-spacing="1.4">BUILT FOR ELGATO STREAM DECK NEO</text>
+      <g transform="translate(80 692)" font-family="Arial,sans-serif">
+        <text x="0" y="0" fill="#f59e67" font-size="12" font-weight="800" letter-spacing="1.6">CLAUDE</text>
+        <text x="0" y="28" fill="#6f7e94" font-size="14">plan usage</text>
+        <text x="144" y="0" fill="#55b7ff" font-size="12" font-weight="800" letter-spacing="1.6">CODEX</text>
+        <text x="144" y="28" fill="#6f7e94" font-size="14">rate limits</text>
+        <text x="288" y="0" fill="#b69cff" font-size="12" font-weight="800" letter-spacing="1.6">OPENCODE</text>
+        <text x="288" y="28" fill="#6f7e94" font-size="14">local tokens</text>
+      </g>
+      <rect x="80" y="800" width="1440" height="1" fill="#ffffff" fill-opacity=".10"/>
+      <text x="80" y="842" fill="#617087" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="1.6">STATUS · USAGE · ATTENTION</text>
+      <text x="1520" y="842" text-anchor="end" fill="#617087" font-family="Arial,sans-serif" font-size="14" letter-spacing="1.4">OPEN SOURCE · NO TELEMETRY</text>
     </svg>`);
 
   await writePng(
     width,
     height,
     background,
-    [{ input: device, left: 620, top: 122 }],
+    [{ input: device, left: 568, top: 114 }],
     file
   );
 }
@@ -193,9 +208,11 @@ async function renderDevice(data: DashboardSnapshot, page: number, scale: number
       <g fill="#aab5c6"><path d="M116 473 l10 -10 l4 4 l-6 6 l6 6 l-4 4z"/><path d="M714 473 l-10 -10 l-4 4 l6 6 l-6 6 l4 4z"/></g>
       <g fill="none" stroke="#ffffff" stroke-opacity=".08"><circle cx="123" cy="473" r="28"/><circle cx="707" cy="473" r="28"/></g>
     </svg>`);
+  const keyGridWidth = 4 * keySize + 3 * gap;
+  const keyGridLeft = Math.round((840 - keyGridWidth) / 2);
   const composites: sharp.OverlayOptions[] = keys.map((input, index) => ({
     input,
-    left: 77 + (index % 4) * (keySize + gap),
+    left: keyGridLeft + (index % 4) * (keySize + gap),
     top: 67 + Math.floor(index / 4) * (keySize + gap)
   }));
   composites.push({ input: infoBar, left: 228, top: 428 });
