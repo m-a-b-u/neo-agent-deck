@@ -26,6 +26,21 @@ interface CodexCandidate extends SessionSnapshot {
   rateLimits: RateLimits | null;
 }
 
+// A crashed Codex session leaves task_started as its final lifecycle event forever. Bound
+// "working" by file recency the way Claude/OpenCode do, so a dead session decays to idle instead
+// of being counted as a live agent indefinitely.
+const CODEX_WORKING_MS = 10 * 60_000;
+
+export function inferCodexState(info: CodexTail, activityAt: number, state: PersistedState, now: number, key: string): { state: SessionSnapshot["state"]; completionAt: number } {
+  if (info.life === "task_started" && now - activityAt < CODEX_WORKING_MS) {
+    return { state: "working", completionAt: 0 };
+  }
+  if ((info.life === "task_complete" || info.life === "turn_aborted") && info.lifeAt > state.attentionSince && info.lifeAt > (state.acknowledged[key] || 0)) {
+    return { state: "attention", completionAt: info.lifeAt };
+  }
+  return { state: "idle", completionAt: 0 };
+}
+
 export class CodexCollector {
   private files: FileStamp[] = [];
   private scannedAt = 0;
@@ -48,22 +63,15 @@ export class CodexCollector {
       if (!id) continue;
       const info = await this.readInfo(file, index);
       const key = `codex:${id}`;
-      let sessionState: SessionSnapshot["state"] = "idle";
-      let completionAt = 0;
-      if (info.life === "task_started") {
-        sessionState = "working";
-      } else if ((info.life === "task_complete" || info.life === "turn_aborted") && info.lifeAt > state.attentionSince && info.lifeAt > (state.acknowledged[key] || 0)) {
-        sessionState = "attention";
-        completionAt = info.lifeAt;
-      }
+      const inferred = inferCodexState(info, file.mtimeMs, state, now, key);
       candidates.push({
         key,
         id,
         provider: "codex",
-        state: sessionState,
-        isOpen: sessionState !== "idle",
+        state: inferred.state,
+        isOpen: inferred.state !== "idle",
         activityAt: file.mtimeMs,
-        completionAt,
+        completionAt: inferred.completionAt,
         rateLimits: info.rateLimits
       });
     }

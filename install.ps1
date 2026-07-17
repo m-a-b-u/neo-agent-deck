@@ -8,10 +8,10 @@ Push-Location $Root
 try {
   if (-not (Get-Command node.exe -ErrorAction SilentlyContinue) -or
       -not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
-    throw "Node.js 22.13 or newer is required: https://nodejs.org/"
+    throw "Node.js 22.13+ (Node 22) or Node.js 24+ is required: https://nodejs.org/"
   }
 
-  & node.exe -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) { console.error(`Node.js 22.13+ is required; found ${process.version}`); process.exit(1); }'
+  & node.exe -e 'const [major, minor] = process.versions.node.split(".").map(Number); const ok = (major === 22 && minor >= 13) || major >= 24; if (!ok) { console.error(`Node.js 22.13+ or 24+ is required (the 23.x line is unsupported); found ${process.version}`); process.exit(1); }'
   if ($LASTEXITCODE -ne 0) { throw "Unsupported Node.js version." }
 
   Write-Host "Installing setup dependencies..."

@@ -5,7 +5,7 @@ This guide covers installation on macOS, Windows, and Linux, backend discovery, 
 ## Prerequisites
 
 - macOS, Windows 10+, or Linux with a systemd user session.
-- Node.js 22.13 or newer (`node --version`).
+- Node.js 22.13+ on the Node 22 line, or Node.js 24+ (`node --version`). Node 23 is unsupported.
 - An Elgato Stream Deck Neo. It may stay disconnected during setup.
 - At least one local Claude Code, Codex, or OpenCode installation.
 - On macOS and Windows, Elgato Stream Deck must be closed while Neo Agent Deck controls the device. The installers close it automatically.

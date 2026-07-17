@@ -40,5 +40,13 @@ if ! launchctl bootstrap "gui/$UID" "$PLIST" 2>/dev/null; then
 fi
 launchctl kickstart -k "gui/$UID/com.neo-agent-deck"
 
+sleep 2
+service_state="$(launchctl print "gui/$UID/com.neo-agent-deck" 2>/dev/null || true)"
+if ! printf '%s' "$service_state" | grep -q "state = running"; then
+  echo "Neo Agent Deck did not stay running. Recent errors:" >&2
+  tail -n 40 "$HOME/Library/Logs/NeoAgentDeck.error.log" 2>/dev/null >&2 || true
+  exit 1
+fi
+
 echo "Neo Agent Deck installed and started."
 echo "Logs: $HOME/Library/Logs/NeoAgentDeck.log"

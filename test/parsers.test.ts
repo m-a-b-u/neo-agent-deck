@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseClaudeTail } from "../src/collectors/claude.js";
-import { findLatestCodexLifecycle, parseCodexTail, usageFromRateLimits, windowLabel } from "../src/collectors/codex.js";
+import { findLatestCodexLifecycle, inferCodexState, parseCodexTail, usageFromRateLimits, windowLabel, type CodexTail } from "../src/collectors/codex.js";
 import { inferOpenCodeState, type OpenCodeSessionRow } from "../src/collectors/opencode.js";
 import { clampPercent } from "../src/lib/util.js";
 import type { PersistedState } from "../src/types.js";
@@ -108,6 +108,27 @@ describe("Codex session parsing", () => {
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
+  });
+});
+
+describe("Codex session state", () => {
+  const state: PersistedState = { schemaVersion: 2, installedAt: 50, attentionSince: 100, infoPage: 3, acknowledged: {} };
+  const tail = (overrides: Partial<CodexTail>): CodexTail => ({ life: "task_started", lifeAt: 200, rateLimits: null, ...overrides });
+
+  it("shows a recently active task_started session as working", () => {
+    expect(inferCodexState(tail({}), 1_000, state, 1_500, "codex:1").state).toBe("working");
+  });
+
+  it("decays a stale task_started (crashed session) to idle instead of forever-working", () => {
+    const now = 1_000_000_000;
+    expect(inferCodexState(tail({}), now - 599_999, state, now, "codex:1").state).toBe("working");
+    expect(inferCodexState(tail({}), now - 600_000, state, now, "codex:1").state).toBe("idle");
+  });
+
+  it("marks a fresh completion as attention until acknowledged", () => {
+    expect(inferCodexState(tail({ life: "task_complete", lifeAt: 200 }), 200, state, 300, "codex:1")).toEqual({ state: "attention", completionAt: 200 });
+    const acknowledged = { ...state, acknowledged: { "codex:1": 200 } };
+    expect(inferCodexState(tail({ life: "task_complete", lifeAt: 200 }), 200, acknowledged, 300, "codex:1")).toEqual({ state: "idle", completionAt: 0 });
   });
 });
 

@@ -122,7 +122,7 @@ export class ClaudeCollector {
         headers: {
           Authorization: `Bearer ${token}`,
           "anthropic-beta": "oauth-2025-04-20",
-          "user-agent": "neo-agent-deck/0.3.0"
+          "user-agent": "neo-agent-deck/0.3.1"
         },
         signal: AbortSignal.timeout(10_000)
       });
@@ -143,16 +143,30 @@ export class ClaudeCollector {
   }
 }
 
+// ponytail: the WSL liveness probe spawns wsl.exe; cache results briefly so a directory of session
+// files does not spawn one probe per file on every 3s poll. Raise the TTL or batch the probes into a
+// single wsl.exe call if WSL users still report refresh lag.
+const wslAliveCache = new Map<string, { alive: boolean; at: number }>();
+const WSL_ALIVE_TTL_MS = 8_000;
+
 async function claudeProcessAlive(pid: unknown, sessionDirectory: string): Promise<boolean> {
   if (!Number.isInteger(pid) || Number(pid) <= 0) return false;
   const distribution = process.platform === "win32" ? wslDistributionFromPath(sessionDirectory) : null;
   if (!distribution) return processAlive(pid);
+  const cacheKey = `${distribution}:${Number(pid)}`;
+  const now = Date.now();
+  const cached = wslAliveCache.get(cacheKey);
+  if (cached && now - cached.at < WSL_ALIVE_TTL_MS) return cached.alive;
+  let alive = false;
   try {
     await execFileAsync("wsl.exe", ["-d", distribution, "--exec", "sh", "-lc", `kill -0 ${Number(pid)}`], { timeout: 2_000 });
-    return true;
+    alive = true;
   } catch {
-    return false;
+    alive = false;
   }
+  if (wslAliveCache.size > 256) wslAliveCache.clear();
+  wslAliveCache.set(cacheKey, { alive, at: now });
+  return alive;
 }
 
 export function parseClaudeTail(text: string, fallbackMs: number): ClaudeTail {

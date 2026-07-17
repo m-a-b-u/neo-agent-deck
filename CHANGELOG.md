@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-17
+
+### Fixed
+
+- A crashed Codex session whose last lifecycle event was `task_started` was
+  shown as a live working agent indefinitely; the working state now expires
+  after ten minutes without file activity.
+- The macOS installer now verifies the login service stayed running after
+  start and fails with the recent error log instead of reporting success
+  unconditionally, matching the Linux installer.
+- The Windows uninstaller now warns when the install directory could not be
+  fully removed instead of always reporting success.
+- Persistent collector or render failures no longer append a duplicate
+  "Refresh skipped" line to the log on every poll.
+
+### Changed
+
+- The supported Node.js range now excludes the end-of-life Node 23 line, whose
+  early releases keep the built-in `node:sqlite` module behind a flag.
+  Supported runtimes are 22.13+ on Node 22 and Node 24+.
+- WSL Claude process-liveness checks are cached briefly so a directory of
+  session files no longer spawns one `wsl.exe` probe per file on every poll.
+- The release and CI pipelines now share one reusable check workflow, so a
+  release can never run a weaker gate than CI. Release runs least-privilege
+  (`contents: read` except the publish job) and pins the third-party release
+  action to a commit SHA.
+
 ## [0.3.0] - 2026-07-16
 
 ### Added

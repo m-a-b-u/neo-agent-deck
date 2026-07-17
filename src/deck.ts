@@ -15,6 +15,7 @@ export class NeoAgentDeck {
   private running = false;
   private disconnectResolve: (() => void) | null = null;
   private lastWaitingReason = "";
+  private lastRefreshError = "";
 
   async start(): Promise<void> {
     this.running = true;
@@ -127,14 +128,20 @@ export class NeoAgentDeck {
         const page = this.dashboard.state.data.infoPage;
         buffers = await renderDeckBuffers(snapshot, page, this.dashboard.config);
       } catch (error) {
-        // Collector/render failures are not device failures; skip this frame.
-        console.warn(`Refresh skipped: ${error instanceof Error ? error.message : String(error)}`);
+        // Collector/render failures are not device failures; skip this frame. Deduplicate the
+        // message so a persistent failure does not grow the log file every POLL_INTERVAL_MS.
+        const message = error instanceof Error ? error.message : String(error);
+        if (message !== this.lastRefreshError) {
+          this.lastRefreshError = message;
+          console.warn(`Refresh skipped: ${message}`);
+        }
         return;
       }
       // The device may have disconnected (or reconnected) while we were collecting.
       if (this.deck !== deck) return;
       await Promise.all(buffers.slice(0, 8).map((buffer, key) => deck.fillKeyBuffer(key, buffer, { format: "rgba" })));
       await deck.fillLcd(0, buffers[8], { format: "rgba" });
+      this.lastRefreshError = "";
     } finally {
       this.rendering = false;
     }

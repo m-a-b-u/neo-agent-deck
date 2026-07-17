@@ -1,6 +1,6 @@
 {
   "name": "neo-agent-deck",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Turn a Stream Deck Neo into a live Claude Code, Codex, and OpenCode agent console.",
   "type": "module",
   "private": true,
@@ -28,7 +28,7 @@
     "linux"
   ],
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.13 <23 || >=24"
   },
   "scripts": {
     "build": "node scripts/clean.mjs && tsc -p tsconfig.json",

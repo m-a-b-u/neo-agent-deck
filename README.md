@@ -14,14 +14,14 @@
   <a href="https://github.com/m-a-b-u/neo-agent-deck/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/m-a-b-u/neo-agent-deck?display_name=tag"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-7c3aed"></a>
   <img alt="macOS, Windows, and Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-111827">
-  <img alt="Node.js 22.13 or newer" src="https://img.shields.io/badge/Node.js-22.13%2B-339933?logo=nodedotjs&logoColor=white">
+  <img alt="Node.js 22.13 on Node 22, or Node.js 24 or newer" src="https://img.shields.io/badge/Node.js-22.13%20%7C%2024%2B-339933?logo=nodedotjs&logoColor=white">
 </p>
 
 Neo Agent Deck turns the Neo's eight LCD keys, 248×58 InfoBar, and two touch points into one dashboard. It runs locally over USB, reconnects automatically, and safely waits when the device is unplugged.
 
 ## Install in three steps
 
-Requirements: Git, [Node.js 22.13+](https://nodejs.org/), and macOS, Windows 10+, or Linux with a systemd user session. The Neo can stay unplugged during setup.
+Requirements: Git, [Node.js 22.13+ on Node 22 or Node.js 24+](https://nodejs.org/), and macOS, Windows 10+, or Linux with a systemd user session. Node 23 is unsupported. The Neo can stay unplugged during setup.
 
 1. Clone the repository.
 
