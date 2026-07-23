@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { DeviceModelId, listStreamDecks, openStreamDeck, type StreamDeck } from "@elgato-stream-deck/node";
+import { listStreamDecks, openStreamDeck, type StreamDeck } from "@elgato-stream-deck/node";
 import { Dashboard } from "./dashboard.js";
+import { profileFromDeck, type DeckProfile } from "./device.js";
 import { actionForControl } from "./input.js";
 import { renderDeckBuffers } from "./render.js";
 
@@ -10,6 +11,7 @@ const DEVICE_SCAN_INTERVAL_MS = 5_000;
 export class NeoAgentDeck {
   private readonly dashboard = new Dashboard();
   private deck: StreamDeck | null = null;
+  private profile: DeckProfile | null = null;
   private timer: NodeJS.Timeout | null = null;
   private rendering = false;
   private running = false;
@@ -39,22 +41,44 @@ export class NeoAgentDeck {
       this.reportWaiting(`USB scan failed: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
-    const neo = devices.find((device) => device.model === DeviceModelId.NEO);
-    if (!neo) {
-      this.reportWaiting("Neo not connected; waiting for USB device.");
+    if (!devices.length) {
+      this.reportWaiting("Stream Deck not connected; waiting for USB device.");
       return false;
     }
 
-    try {
-      this.deck = await openStreamDeck(neo.path, { resetToLogoOnClose: true });
-    } catch {
-      this.reportWaiting("Neo detected but busy; quit the Elgato Stream Deck app.");
+    // Open whatever is attached and keep the first device that reports drawable keys;
+    // pedals and docks describe themselves without any, so they drop out on their own.
+    let busy = false;
+    for (const device of devices) {
+      let candidate: StreamDeck;
+      try {
+        candidate = await openStreamDeck(device.path, { resetToLogoOnClose: true });
+      } catch {
+        busy = true;
+        continue;
+      }
+      const profile = profileFromDeck(candidate);
+      if (!profile.keys.length) {
+        await candidate.close().catch(() => undefined);
+        continue;
+      }
+      this.deck = candidate;
+      this.profile = profile;
+      break;
+    }
+
+    if (!this.deck || !this.profile) {
+      this.reportWaiting(busy
+        ? "Stream Deck detected but busy; quit the Elgato Stream Deck app."
+        : "No Stream Deck with drawable keys connected; waiting for USB device.");
       return false;
     }
 
     this.lastWaitingReason = "";
     this.deck.on("error", (error) => void this.handleDeviceError(error));
-    this.deck.on("down", (control) => void this.onKeyDown(control.index));
+    this.deck.on("down", (control) => {
+      if (control.type === "button") void this.onKeyDown(control.index);
+    });
     try {
       await this.deck.setBrightness(Math.max(0, Math.min(100, this.dashboard.config.brightness)));
       await this.refresh(true);
@@ -63,7 +87,7 @@ export class NeoAgentDeck {
       return false;
     }
     this.timer = setInterval(() => void this.refresh(false).catch((error) => this.handleDeviceError(error)), POLL_INTERVAL_MS);
-    console.log("Neo connected; live dashboard active.");
+    console.log(`${this.profile.name} connected; live dashboard active.`);
     await new Promise<void>((resolve) => {
       this.disconnectResolve = resolve;
     });
@@ -72,7 +96,7 @@ export class NeoAgentDeck {
 
   private async handleDeviceError(error: unknown): Promise<void> {
     if (!this.deck) return;
-    console.warn(`Neo disconnected: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn(`${this.profile?.name ?? "Stream Deck"} disconnected: ${error instanceof Error ? error.message : String(error)}`);
     await this.disconnect();
   }
 
@@ -81,6 +105,7 @@ export class NeoAgentDeck {
     this.timer = null;
     const deck = this.deck;
     this.deck = null;
+    this.profile = null;
     if (deck) {
       try {
         await deck.close();
@@ -102,7 +127,7 @@ export class NeoAgentDeck {
   private async onKeyDown(key: number): Promise<void> {
     try {
       const config = this.dashboard.config;
-      const action = actionForControl(key, config);
+      const action = actionForControl(key, config, this.profile ?? undefined);
       if (action.type === "acknowledge-provider") {
         this.dashboard.acknowledgeProvider(action.provider);
       } else if (action.type === "cycle-info") {
@@ -119,14 +144,15 @@ export class NeoAgentDeck {
 
   private async refresh(forceUsage: boolean): Promise<void> {
     const deck = this.deck;
-    if (!deck || this.rendering) return;
+    const profile = this.profile;
+    if (!deck || !profile || this.rendering) return;
     this.rendering = true;
     try {
       let buffers: Awaited<ReturnType<typeof renderDeckBuffers>>;
       try {
         const snapshot = await this.dashboard.collect(forceUsage);
         const page = this.dashboard.state.data.infoPage;
-        buffers = await renderDeckBuffers(snapshot, page, this.dashboard.config);
+        buffers = await renderDeckBuffers(snapshot, page, this.dashboard.config, profile);
       } catch (error) {
         // Collector/render failures are not device failures; skip this frame. Deduplicate the
         // message so a persistent failure does not grow the log file every POLL_INTERVAL_MS.
@@ -139,8 +165,8 @@ export class NeoAgentDeck {
       }
       // The device may have disconnected (or reconnected) while we were collecting.
       if (this.deck !== deck) return;
-      await Promise.all(buffers.slice(0, 8).map((buffer, key) => deck.fillKeyBuffer(key, buffer, { format: "rgba" })));
-      await deck.fillLcd(0, buffers[8], { format: "rgba" });
+      await Promise.all(profile.keys.map((key, position) => deck.fillKeyBuffer(key.index, buffers[position], { format: "rgba" })));
+      if (profile.lcd) await deck.fillLcd(profile.lcd.id, buffers[profile.keys.length], { format: "rgba" });
       this.lastRefreshError = "";
     } finally {
       this.rendering = false;
