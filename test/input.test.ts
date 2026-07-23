@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, type DeckConfig } from "../src/config.js";
+import { KEYPAD_15_PROFILE } from "../src/device.js";
 import { actionForControl } from "../src/input.js";
 
 describe("Neo controls", () => {
@@ -34,5 +35,31 @@ describe("Neo controls", () => {
     expect(actionForControl(4, config)).toEqual({ type: "refresh", forceUsage: true });
     expect(actionForControl(6, config)).toEqual({ type: "acknowledge-provider", provider: "claude", forceUsage: false });
     expect(actionForControl(12, config)).toEqual({ type: "refresh", forceUsage: false });
+  });
+});
+
+describe("keypad controls", () => {
+  it("treats the Neo touch-point indices as ordinary keys on a keypad deck", () => {
+    expect(actionForControl(8, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "refresh", forceUsage: false });
+    expect(actionForControl(9, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "refresh", forceUsage: false });
+  });
+
+  it("cycles the InfoBar from any tile of the spanned run", () => {
+    for (const index of [10, 11, 12, 13]) {
+      expect(actionForControl(index, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "cycle-info", delta: 1, forceUsage: false });
+    }
+    expect(actionForControl(14, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "cycle-info", delta: 1, forceUsage: false });
+  });
+
+  it("dispatches the 15-key default layout", () => {
+    expect(actionForControl(0, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "acknowledge-provider", provider: "claude", forceUsage: false });
+    expect(actionForControl(3, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "show-agents", forceUsage: true });
+    expect(actionForControl(5, DEFAULT_CONFIG, KEYPAD_15_PROFILE)).toEqual({ type: "refresh", forceUsage: true });
+  });
+
+  it("honours a configured 15-key layout instead of the preset", () => {
+    const config: DeckConfig = { ...DEFAULT_CONFIG, keys: Array(15).fill("blank").map((value, index) => (index === 14 ? "codex.status" : value)) };
+    expect(actionForControl(14, config, KEYPAD_15_PROFILE)).toEqual({ type: "acknowledge-provider", provider: "codex", forceUsage: false });
+    expect(actionForControl(0, config, KEYPAD_15_PROFILE)).toEqual({ type: "refresh", forceUsage: false });
   });
 });

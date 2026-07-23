@@ -6,7 +6,7 @@ This guide covers installation on macOS, Windows, and Linux, backend discovery, 
 
 - macOS, Windows 10+, or Linux with a systemd user session.
 - Node.js 22.13+ on the Node 22 line, or Node.js 24+ (`node --version`). Node 23 is unsupported.
-- An Elgato Stream Deck Neo. It may stay disconnected during setup.
+- An Elgato Stream Deck. The Neo, MK.2, MK.2 Scissor, Original, Original V2, XL, Mini, and the 6/15/32 modules are supported. It may stay disconnected during setup.
 - At least one local Claude Code, Codex, or OpenCode installation.
 - On macOS and Windows, Elgato Stream Deck must be closed while Neo Agent Deck controls the device. The installers close it automatically.
 
@@ -34,7 +34,7 @@ npm run preview:live
 npm run dev
 ```
 
-`doctor` does not require a connected Neo. It verifies the platform, Node version, USB detection, Claude sign-in, expected data paths, SQLite database, and each collector without printing credentials or session content.
+`doctor` does not require a connected deck. It verifies the platform, Node version, USB detection, Claude sign-in, expected data paths, SQLite database, and each collector without printing credentials or session content.
 
 ## Install at login
 
@@ -80,7 +80,7 @@ npm run install:linux
 
 The Linux installer builds and copies the app to `~/.local/share/neo-agent-deck` and creates `~/.config/systemd/user/neo-agent-deck.service`. The user service starts at desktop login and restarts automatically after a failure.
 
-Linux protects raw HID devices from unprivileged processes. The installer therefore checks the `libusb`/`libudev` runtime, copies the desktop-user udev rule shipped by `@elgato-stream-deck/node` into `/etc/udev/rules.d`, and reloads udev. Missing runtime packages and the rule are the only operations that may ask for `sudo`; the application itself never runs as root. Debian/Ubuntu, Fedora/RHEL, Arch, and openSUSE package families are detected automatically. Unplug and reconnect an already attached Neo once after the first install.
+Linux protects raw HID devices from unprivileged processes. The installer therefore checks the `libusb`/`libudev` runtime, copies the desktop-user udev rule shipped by `@elgato-stream-deck/node` into `/etc/udev/rules.d`, and reloads udev. Missing runtime packages and the rule are the only operations that may ask for `sudo`; the application itself never runs as root. Debian/Ubuntu, Fedora/RHEL, Arch, and openSUSE package families are detected automatically. Unplug and reconnect an already attached deck once after the first install.
 
 ```bash
 systemctl --user status neo-agent-deck.service
@@ -156,7 +156,7 @@ npm run setup -- --default # restore the recommended default
 npm run setup -- --reset   # alias for --default
 ```
 
-The setup first shows the complete current layout. Press Enter to keep it, or answer `y` to edit it. In the full editor, the eight physical keys are configured in viewing order: keys 0–3 are the top row and 4–7 the bottom row. Press Enter at an individual prompt to keep its displayed value. Restart or reinstall the service afterward to apply changes.
+The setup first asks which deck the configuration is for, then shows that deck's current layout. Press Enter to keep it, or answer `y` to edit it. In the full editor, the physical keys are configured in viewing order, row by row. Press Enter at an individual prompt to keep its displayed value. Use `--keys=8` or `--keys=15` to pick the deck without being asked. Restart or reinstall the service afterward to apply changes.
 
 If the file is missing or unreadable, safe defaults apply. Invalid top-level fields fall back individually; an unknown key entry becomes a blank tile. A broken configuration cannot prevent startup.
 
@@ -173,7 +173,7 @@ If the file is missing or unreadable, safe defaults apply. Invalid top-level fie
 ```
 
 - `brightness`: panel brightness from 0–100.
-- `keys`: exactly eight modules, one for each physical key.
+- `keys`: one module per physical key. The length identifies the deck: 8 for the Neo, 15 for MK.2-class decks. Any other length falls back to the default layout.
 - `infoBar`: at least one page, in cycle order.
 - `restingPage`: startup page; it must occur in `infoBar`.
 
@@ -191,6 +191,7 @@ If the file is missing or unreadable, safe defaults apply. Invalid top-level fie
 | `opencode.usage` | OpenCode tokens and seven-day cost | Force usage refresh |
 | `summary` | Combined open and attention counts | Open All Agents page and refresh |
 | `info` | Current page, for example `INFO 2/4` | Move forward one page |
+| `infobar` | One block of the current InfoBar page; adjacent tiles in a row share the page | Move forward one page |
 | `blank` | Dim empty tile | Refresh only |
 
 ### InfoBar modules
@@ -202,7 +203,11 @@ If the file is missing or unreadable, safe defaults apply. Invalid top-level fie
 | `opencode` | OpenCode 24-hour and 7-day token usage |
 | `all` | Combined open, working, and attention counts |
 
-The left Neo touch point moves one page backward; the right touch point moves one page forward. Cycling wraps around the configured `infoBar` list.
+The left Neo touch point moves one page backward; the right touch point moves one page forward. On decks without touch points, the `info` key and every `infobar` tile move forward. Cycling wraps around the configured `infoBar` list.
+
+### The InfoBar on decks without an LCD segment
+
+A deck such as the MK.2 has no LCD strip, so the InfoBar is spread across a run of adjacent `infobar` keys in the same row. Each key renders one self-contained block of the current page: the first names the page, the rest carry its metrics. Two tiles show a page heading plus one metric; four give every metric of every page its own key, which is what the 15-key default uses. A run is broken by any other module and does not continue across rows, so several independent runs are possible.
 
 ## Example layouts
 
@@ -239,6 +244,36 @@ The left Neo touch point moves one page backward; the right touch point moves on
            "claude.status", "codex.status", "opencode.status", "summary"],
   "infoBar": ["claude", "codex", "opencode"],
   "restingPage": "claude"
+}
+```
+
+### 15-key default (MK.2 and other keypad decks)
+
+The bottom row carries the InfoBar across four tiles, with the page indicator beside them.
+
+```json
+{
+  "brightness": 70,
+  "keys": ["claude.status", "codex.status", "opencode.status", "summary", "blank",
+           "claude.usage", "codex.usage", "opencode.usage", "blank", "blank",
+           "infobar", "infobar", "infobar", "infobar", "info"],
+  "infoBar": ["claude", "codex", "opencode", "all"],
+  "restingPage": "all"
+}
+```
+
+### 15-key, two InfoBar runs
+
+Two independent runs of two tiles each: the middle row shows the current page heading plus its first metric, the bottom row does the same for a second position in the rotation.
+
+```json
+{
+  "brightness": 70,
+  "keys": ["claude.status", "codex.status", "opencode.status", "summary", "info",
+           "claude.usage", "codex.usage", "opencode.usage", "infobar", "infobar",
+           "blank", "blank", "blank", "infobar", "infobar"],
+  "infoBar": ["claude", "all"],
+  "restingPage": "all"
 }
 ```
 

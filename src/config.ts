@@ -5,7 +5,7 @@ import path from "node:path";
 export type KeyModule =
   | "claude.status" | "codex.status" | "opencode.status"
   | "claude.usage" | "codex.usage" | "opencode.usage"
-  | "summary" | "info" | "blank";
+  | "summary" | "info" | "infobar" | "blank";
 
 export type InfoModule = "claude" | "codex" | "opencode" | "all";
 
@@ -16,12 +16,22 @@ export interface DeckConfig {
   restingPage: InfoModule;
 }
 
-export const DEFAULT_CONFIG: DeckConfig = {
-  brightness: 70,
-  keys: [
+/** Recommended layout per renderable key count; the key count identifies the deck family. */
+export const LAYOUT_PRESETS: Readonly<Record<number, readonly KeyModule[]>> = {
+  8: [
     "claude.status", "codex.status", "opencode.status", "summary",
     "claude.usage", "codex.usage", "opencode.usage", "info"
   ],
+  15: [
+    "claude.status", "codex.status", "opencode.status", "summary", "blank",
+    "claude.usage", "codex.usage", "opencode.usage", "blank", "blank",
+    "infobar", "infobar", "infobar", "infobar", "info"
+  ]
+};
+
+export const DEFAULT_CONFIG: DeckConfig = {
+  brightness: 70,
+  keys: [...LAYOUT_PRESETS[8]],
   infoBar: ["claude", "codex", "opencode", "all"],
   restingPage: "all"
 };
@@ -29,7 +39,7 @@ export const DEFAULT_CONFIG: DeckConfig = {
 const KEY_MODULES: readonly KeyModule[] = [
   "claude.status", "codex.status", "opencode.status",
   "claude.usage", "codex.usage", "opencode.usage",
-  "summary", "info", "blank"
+  "summary", "info", "infobar", "blank"
 ];
 
 const INFO_MODULES: readonly InfoModule[] = ["claude", "codex", "opencode", "all"];
@@ -51,7 +61,7 @@ export function loadConfig(dir = configDir()): DeckConfig {
     ? Math.max(0, Math.min(100, Number(parsed.brightness)))
     : DEFAULT_CONFIG.brightness;
 
-  const keys: KeyModule[] = Array.isArray(parsed.keys) && parsed.keys.length === 8
+  const keys: KeyModule[] = Array.isArray(parsed.keys) && LAYOUT_PRESETS[parsed.keys.length]
     ? parsed.keys.map((key) => (KEY_MODULES.includes(key as KeyModule) ? (key as KeyModule) : "blank"))
     : [...DEFAULT_CONFIG.keys];
 
