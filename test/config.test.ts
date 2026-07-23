@@ -53,6 +53,31 @@ describe("deck config", () => {
     }
   });
 
+  it("accepts a 15-key layout and its InfoBar tiles", () => {
+    const directory = tempDir();
+    try {
+      const keys = [
+        "claude.status", "codex.status", "opencode.status", "summary", "blank",
+        "claude.usage", "codex.usage", "opencode.usage", "blank", "blank",
+        "infobar", "infobar", "infobar", "infobar", "info"
+      ];
+      fs.writeFileSync(path.join(directory, "config.json"), JSON.stringify({ keys }));
+      expect(loadConfig(directory).keys).toEqual(keys);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a key count that matches no deck layout", () => {
+    const directory = tempDir();
+    try {
+      fs.writeFileSync(path.join(directory, "config.json"), JSON.stringify({ keys: Array(12).fill("blank") }));
+      expect(loadConfig(directory).keys).toEqual(DEFAULT_CONFIG.keys);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("round-trips through saveConfig and restricts POSIX permissions", () => {
     const directory = tempDir();
     try {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, type DeckConfig } from "../src/config.js";
-import { formatCompactNumber, renderBlankKey, renderDeckBuffers, renderInfoBar, renderInfoKey, renderProviderKey, renderSummaryKey, renderUsageKey } from "../src/render.js";
+import { KEYPAD_15_PROFILE } from "../src/device.js";
+import { formatCompactNumber, renderBlankKey, renderDeckBuffers, renderInfoBar, renderInfoBarTiles, renderInfoKey, renderProviderKey, renderSummaryKey, renderUsageKey } from "../src/render.js";
 import type { DashboardSnapshot, Provider, ProviderSnapshot, UsageSnapshot } from "../src/types.js";
 
 const usage = (provider: Provider): UsageSnapshot => provider === "opencode"
@@ -108,5 +109,41 @@ describe("Neo rendering", () => {
   it("formats token totals for the small display", () => {
     expect(formatCompactNumber(473_000)).toBe("473K");
     expect(formatCompactNumber(5_180_000)).toBe("5.18M");
+  });
+});
+
+describe("keypad rendering", () => {
+  it("renders one buffer per key at the device pixel size and no LCD buffer", async () => {
+    const buffers = await renderDeckBuffers(snapshot, 3, DEFAULT_CONFIG, KEYPAD_15_PROFILE);
+    expect(buffers).toHaveLength(15);
+    expect(buffers.every((buffer) => buffer.length === 72 * 72 * 4)).toBe(true);
+  }, 30_000);
+
+  it("scales the same module to whatever size the device reports", async () => {
+    expect((await renderProviderKey(snapshot.providers.claude, { width: 72, height: 72 })).length).toBe(72 * 72 * 4);
+    expect((await renderSummaryKey(snapshot, { width: 80, height: 80 })).length).toBe(80 * 80 * 4);
+    expect((await renderBlankKey({ width: 120, height: 120 })).length).toBe(120 * 120 * 4);
+  });
+
+  it("gives every InfoBar tile its own content", async () => {
+    const tiles = await renderInfoBarTiles(snapshot, DEFAULT_CONFIG.infoBar.indexOf("all"), DEFAULT_CONFIG, 4, { width: 72, height: 72 });
+    expect(tiles).toHaveLength(4);
+    expect(tiles.every((tile) => tile.length === 72 * 72 * 4)).toBe(true);
+    for (let index = 1; index < tiles.length; index += 1) {
+      expect(tiles[index].equals(tiles[index - 1])).toBe(false);
+    }
+  });
+
+  it("redraws the InfoBar tiles when the page changes", async () => {
+    const size = { width: 72, height: 72 };
+    const claudePage = await renderInfoBarTiles(snapshot, 0, DEFAULT_CONFIG, 4, size);
+    const allPage = await renderInfoBarTiles(snapshot, DEFAULT_CONFIG.infoBar.indexOf("all"), DEFAULT_CONFIG, 4, size);
+    expect(claudePage[0].equals(allPage[0])).toBe(false);
+  });
+
+  it("pads a tile run that is longer than the page has blocks", async () => {
+    const tiles = await renderInfoBarTiles(snapshot, 0, DEFAULT_CONFIG, 5, { width: 72, height: 72 });
+    expect(tiles).toHaveLength(5);
+    expect(tiles.every((tile) => tile.length === 72 * 72 * 4)).toBe(true);
   });
 });
