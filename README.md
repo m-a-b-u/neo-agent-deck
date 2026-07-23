@@ -5,7 +5,7 @@
 <h1 align="center">Neo Agent Deck</h1>
 
 <p align="center">
-  A private, glanceable agent console for the Elgato Stream Deck Neo.<br>
+  A private, glanceable agent console for the Elgato Stream Deck.<br>
   See Claude Code, Codex, and OpenCode status and usage directly on your desk.
 </p>
 
@@ -19,9 +19,26 @@
 
 Neo Agent Deck turns the Neo's eight LCD keys, 248×58 InfoBar, and two touch points into one dashboard. It runs locally over USB, reconnects automatically, and safely waits when the device is unplugged.
 
+## Supported devices
+
+The dashboard reads the key count, key resolution, and LCD segment from the connected device, so it adapts instead of assuming a Neo.
+
+| Device | Layout | InfoBar |
+| --- | --- | --- |
+| Stream Deck Neo | 8 keys at 96×96 | 248×58 LCD segment, touch points page through it |
+| Stream Deck MK.2, MK.2 Scissor, Original, Original V2 | 15 keys at 72×72 | Four keys of the bottom row, tap any of them to page |
+| Stream Deck XL, 32 Module | 32 keys at 96×96 | Generated layout; assign `infobar` keys in `config.json` |
+| Stream Deck Mini, 6 Module | 6 keys at 80×80 | Generated layout; assign `infobar` keys in `config.json` |
+
+Decks without an LCD segment render the InfoBar across a run of adjacent keys — each key carries one block of the current page, and tapping any of them advances the rotation. Devices without drawable keys, such as the Pedal, are skipped.
+
+<p align="center">
+  <img src="docs/images/15-key-preview.png" alt="The 15-key layout on a Stream Deck MK.2, with the InfoBar spread across the bottom row" width="700">
+</p>
+
 ## Install in three steps
 
-Requirements: Git, [Node.js 22.13+ on Node 22 or Node.js 24+](https://nodejs.org/), and macOS, Windows 10+, or Linux with a systemd user session. Node 23 is unsupported. The Neo can stay unplugged during setup.
+Requirements: Git, [Node.js 22.13+ on Node 22 or Node.js 24+](https://nodejs.org/), and macOS, Windows 10+, or Linux with a systemd user session. Node 23 is unsupported. The deck can stay unplugged during setup.
 
 1. Clone the repository.
 
@@ -49,7 +66,7 @@ Requirements: Git, [Node.js 22.13+ on Node 22 or Node.js 24+](https://nodejs.org
    .\install.cmd
    ```
 
-The terminal UI shows the recommended 4×2 layout first. Press Enter to accept it, or choose `y` to customize every key, InfoBar page, resting page, and brightness. The installer then builds a private per-user copy and enables automatic startup.
+The terminal UI asks which deck the config is for, then shows its recommended layout. Press Enter to accept it, or choose `y` to customize every key, InfoBar page, resting page, and brightness. The installer then builds a private per-user copy and enables automatic startup.
 
 macOS and Windows need no administrator password. Linux asks for `sudo` only if HID runtime packages or its Stream Deck USB permission rule are missing; the application and service still run as your user.
 
@@ -78,7 +95,7 @@ Sign in to at least one supported agent locally. Providers that are not installe
   <img src="docs/images/status-states.png" alt="Working, need-you, and idle states rendered with the production key renderer" width="840">
 </p>
 
-Tap an amber provider key to acknowledge completed sessions. Tap **All Agents** for the combined view. The info key and right touch point move forward through the InfoBar pages; the left touch point moves backward.
+Tap an amber provider key to acknowledge completed sessions. Tap **All Agents** for the combined view. The info key and right touch point move forward through the InfoBar pages; the left touch point moves backward. On a deck without touch points, the info key and every InfoBar tile move forward.
 
 <p align="center">
   <img src="docs/images/infobar-pages.png" alt="Claude, Codex, OpenCode, and all-agent production InfoBar views" width="840">
@@ -121,7 +138,8 @@ Useful non-interactive commands:
 ```bash
 npm run setup -- --print    # show effective configuration
 npm run setup -- --default  # restore the default layout
-npm run status              # sanitized live backend summary; no Neo needed
+npm run setup -- --keys=15  # target a 15-key deck non-interactively
+npm run status              # sanitized live backend summary; no deck needed
 npm run doctor              # platform, device, sign-in, files, DB, backends
 npm run preview:live        # render live data and print the image path
 ```
@@ -134,26 +152,26 @@ flowchart LR
   X["Codex session events"] --> D
   O["OpenCode SQLite"] --> D
   D --> S["Normalized session + usage state"]
-  S --> R["96×96 keys + 248×58 InfoBar"]
-  R --> N["Stream Deck Neo over USB"]
+  S --> R["Key and InfoBar rendering"]
+  R --> N["Stream Deck over USB"]
 ```
 
 The app polls local agent state every three seconds. Claude plan usage is cached for five minutes unless you tap a usage key. Device disconnects, malformed session lines, missing backends, and temporary collector failures are isolated so the service keeps running and reconnects.
 
-Direct USB access is intentional: Neo Agent Deck uses the Neo HID implementation from the MIT-licensed `@elgato-stream-deck/node` library.
+Direct USB access is intentional: Neo Agent Deck uses the HID implementation from the MIT-licensed `@elgato-stream-deck/node` library, and reads each device's control layout from it.
 
 ## Troubleshooting
 
 - **Elgato's normal profile is visible:** fully quit Elgato Stream Deck, then restart Neo Agent Deck.
 - **A backend is unavailable:** run `npm run doctor`, then `npm run status` for the sanitized error.
-- **The Neo is unplugged:** the service waits and reconnects automatically.
+- **The deck is unplugged:** the service waits and reconnects automatically.
 - **macOS restart:** `launchctl kickstart -k gui/$UID/com.neo-agent-deck`.
 - **Windows restart:** run `npm run install:win` again; it replaces and restarts the per-user service.
 - **Linux restart:** `systemctl --user restart neo-agent-deck.service`.
 - **macOS logs:** `~/Library/Logs/NeoAgentDeck.log` and `NeoAgentDeck.error.log`.
 - **Windows logs:** `~/.neo-agent-deck/logs/NeoAgentDeck.log` and `NeoAgentDeck.error.log`.
 - **Linux logs:** `journalctl --user -u neo-agent-deck.service -f`.
-- **Linux USB permission denied:** re-run `npm run install:linux`, then unplug and reconnect the Neo once.
+- **Linux USB permission denied:** re-run `npm run install:linux`, then unplug and reconnect the deck once.
 
 To uninstall and return control to Elgato:
 
@@ -181,7 +199,8 @@ Preferences and logs are kept so reinstalling does not discard your layout.
 ```bash
 npm ci
 npm run doctor        # sanitized device and backend checks
-npm run preview:live  # render current backend data without a Neo
+npm run preview:live  # render current backend data without a deck
+npm run preview:15key # render the 15-key layout from sample data
 npm run dev           # run in the foreground
 npm run check          # build, test typecheck, and unit/integration tests
 npm run preview:docs   # regenerate all README product images

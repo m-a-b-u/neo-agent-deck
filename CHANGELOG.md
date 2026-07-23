@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support for Stream Deck models beyond the Neo. The device layer now derives
+  key count, key resolution, grid position, and the presence of an LCD segment
+  from the control definitions the connected device reports, so the MK.2 and
+  other keypad decks work without model-specific code paths.
+- A new `infobar` key module renders the InfoBar on decks that have no LCD
+  segment. Adjacent `infobar` keys in a row share one page, each showing a
+  self-contained block of it, and tapping any of them advances the rotation the
+  way the Neo touch points do.
+- A recommended 15-key layout for MK.2-class decks, selectable in `npm run
+  setup` or with `npm run setup -- --keys=15`.
+- `npm run preview:15key` renders the 15-key layout from sample data, without a
+  device attached.
+
+### Changed
+
+- The service now opens the first attached device that reports drawable keys
+  instead of looking for a Neo, and reports the product name it received from
+  the device. Devices without drawable keys, such as the Pedal, are skipped.
+- `npm run doctor` lists every detected Stream Deck instead of only the Neo.
+- Key modules are drawn on a fixed design canvas and scaled to the pixel size
+  the device reports. On keys below 80 pixels the two smallest hint lines are
+  omitted rather than rendered illegibly.
+
 ## [0.3.1] - 2026-07-17
 
 ### Fixed
