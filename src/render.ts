@@ -118,19 +118,31 @@ async function renderInfoTile(tile: InfoTile | undefined, background: string, fi
   const radius = 15;
   const shape = `<rect x="${first ? 0 : -radius}" y="0" width="${96 + (first ? 0 : radius) + (last ? 0 : radius)}" height="96" rx="${radius}" fill="${background}"/>`;
   if (!tile) return keyToRgba(shape, size);
+  const roomy = size.height >= HINT_MIN_HEIGHT;
   if (tile.head) {
-    const caption = tile.caption && size.height >= HINT_MIN_HEIGHT
+    const caption = tile.caption && roomy
       ? `<text x="48" y="72" text-anchor="middle" fill="#8e9bb0" font-family="-apple-system,sans-serif" font-size="8">${escapeXml(tile.caption)}</text>`
       : "";
-    return keyToRgba(`${shape}<circle cx="16" cy="16" r="4" fill="${tile.accent}"/><text x="48" y="52" text-anchor="middle" fill="${tile.accent}" font-family="-apple-system,sans-serif" font-size="${tile.value.length > 8 ? 13 : 16}" font-weight="900">${escapeXml(tile.value)}</text>${caption}`, size);
+    // Small keys have no room for a long name on one line, so break it at the space.
+    const words = tile.value.split(" ");
+    const lines = !roomy && words.length > 1 && tile.value.length > 8 ? words : [tile.value];
+    const scale = roomy ? 1 : 1.15;
+    const fontSize = Math.round((Math.max(...lines.map((line) => line.length)) > 8 ? 13 : 16) * scale);
+    const top = (roomy ? 52 : 56) - (lines.length - 1) * fontSize * 0.6;
+    const text = lines
+      .map((line, index) => `<tspan x="48" y="${Math.round(top + index * fontSize * 1.15)}">${escapeXml(line)}</tspan>`)
+      .join("");
+    return keyToRgba(`${shape}<circle cx="16" cy="16" r="4" fill="${tile.accent}"/><text text-anchor="middle" fill="${tile.accent}" font-family="-apple-system,sans-serif" font-size="${fontSize}" font-weight="900">${text}</text>${caption}`, size);
   }
   const bar = typeof tile.percent === "number"
-    ? `<rect x="13" y="72" width="70" height="6" rx="3" fill="#ffffff24"/><rect x="13" y="72" width="${Math.max(0, Math.min(70, Math.round(70 * tile.percent / 100)))}" height="6" rx="3" fill="${tile.accent}"/>`
+    ? `<rect x="13" y="${roomy ? 72 : 76}" width="70" height="6" rx="3" fill="#ffffff24"/><rect x="13" y="${roomy ? 72 : 76}" width="${Math.max(0, Math.min(70, Math.round(70 * tile.percent / 100)))}" height="6" rx="3" fill="${tile.accent}"/>`
     : "";
-  const caption = tile.caption && size.height >= HINT_MIN_HEIGHT
+  const caption = tile.caption && roomy
     ? `<text x="48" y="80" text-anchor="middle" fill="#8e9bb0" font-family="-apple-system,sans-serif" font-size="8">${escapeXml(tile.caption)}</text>`
     : "";
-  return keyToRgba(`${shape}<text x="48" y="26" text-anchor="middle" fill="#cbd4df" font-family="-apple-system,sans-serif" font-size="10" font-weight="700">${escapeXml(tile.title)}</text><text x="48" y="60" text-anchor="middle" fill="${tile.accent}" font-family="-apple-system,sans-serif" font-size="${tile.value.length > 4 ? 22 : 28}" font-weight="900">${escapeXml(tile.value)}</text>${bar}${caption}`, size);
+  const title = roomy ? { size: 10, y: 26 } : { size: 12, y: 28 };
+  const value = roomy ? { size: tile.value.length > 4 ? 22 : 28, y: 60 } : { size: tile.value.length > 4 ? 25 : 32, y: 66 };
+  return keyToRgba(`${shape}<text x="48" y="${title.y}" text-anchor="middle" fill="#cbd4df" font-family="-apple-system,sans-serif" font-size="${title.size}" font-weight="700">${escapeXml(tile.title)}</text><text x="48" y="${value.y}" text-anchor="middle" fill="${tile.accent}" font-family="-apple-system,sans-serif" font-size="${value.size}" font-weight="900">${escapeXml(tile.value)}</text>${bar}${caption}`, size);
 }
 
 export async function renderProviderKey(provider: ProviderSnapshot, size: Dimension = DEFAULT_KEY_SIZE): Promise<Buffer> {
@@ -142,10 +154,15 @@ export async function renderProviderKey(provider: ProviderSnapshot, size: Dimens
       ? `${provider.workingCount} active`
       : `${provider.openCount} open`;
   const footer = provider.state === "attention" ? "tap to acknowledge" : "live backend";
-  const hint = size.height < HINT_MIN_HEIGHT
-    ? ""
-    : `<text x="48" y="89" text-anchor="middle" fill="#718095" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="7">${footer}</text>`;
-  return keyToRgba(`<rect width="96" height="96" rx="15" fill="${state.background}"/><circle cx="13" cy="13" r="4" fill="${state.accent}"/><text x="48" y="24" text-anchor="middle" fill="#f3f6fa" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="800">${brand.name}</text><text x="48" y="54" text-anchor="middle" fill="${state.accent}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="900">${state.label}</text><text x="48" y="76" text-anchor="middle" fill="#c6d0dc" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9" font-weight="600">${escapeXml(detail)}</text>${hint}`, size);
+  // Without the hint line the remaining rows can grow into the freed space.
+  const roomy = size.height >= HINT_MIN_HEIGHT;
+  const hint = roomy
+    ? `<text x="48" y="89" text-anchor="middle" fill="#718095" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="7">${footer}</text>`
+    : "";
+  const type = roomy
+    ? { name: 11, nameY: 24, label: 14, labelY: 54, detail: 9, detailY: 76 }
+    : { name: 13, nameY: 27, label: 17, labelY: 60, detail: 11, detailY: 85 };
+  return keyToRgba(`<rect width="96" height="96" rx="15" fill="${state.background}"/><circle cx="13" cy="13" r="4" fill="${state.accent}"/><text x="48" y="${type.nameY}" text-anchor="middle" fill="#f3f6fa" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="${type.name}" font-weight="800">${brand.name}</text><text x="48" y="${type.labelY}" text-anchor="middle" fill="${state.accent}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="${type.label}" font-weight="900">${state.label}</text><text x="48" y="${type.detailY}" text-anchor="middle" fill="#c6d0dc" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="${type.detail}" font-weight="600">${escapeXml(detail)}</text>${hint}`, size);
 }
 
 export async function renderUsageKey(usage: UsageSnapshot, size: Dimension = DEFAULT_KEY_SIZE): Promise<Buffer> {
@@ -161,20 +178,30 @@ export async function renderUsageKey(usage: UsageSnapshot, size: Dimension = DEF
   const footer = usage.error
     ? (usage.windows.length ? "stale · tap refresh" : "data unavailable")
     : usage.provider === "opencode" ? `${formatCurrency(usage.costUsd || 0)} / 7d` : subtitle;
-  return keyToRgba(`<rect width="96" height="96" rx="15" fill="${brand.background}"/><circle cx="14" cy="14" r="4" fill="${brand.accent}"/><text x="48" y="25" text-anchor="middle" fill="#f7fafc" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="800">${brand.name}</text><text x="48" y="59" text-anchor="middle" fill="${brand.accent}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="24" font-weight="800">${escapeXml(headline)}</text><rect x="13" y="69" width="70" height="6" rx="3" fill="#ffffff24"/><rect x="13" y="69" width="${Math.max(0, Math.min(70, width))}" height="6" rx="3" fill="${brand.accent}"/><text x="48" y="88" text-anchor="middle" fill="#bdc8d6" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9">${escapeXml(footer)}</text>`, size);
+  const roomy = size.height >= HINT_MIN_HEIGHT;
+  const type = roomy
+    ? { name: 11, nameY: 25, value: 24, valueY: 59, barY: 69, footer: 9, footerY: 88 }
+    : { name: 12, nameY: 25, value: 27, valueY: 60, barY: 71, footer: 10, footerY: 90 };
+  return keyToRgba(`<rect width="96" height="96" rx="15" fill="${brand.background}"/><circle cx="14" cy="14" r="4" fill="${brand.accent}"/><text x="48" y="${type.nameY}" text-anchor="middle" fill="#f7fafc" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="${type.name}" font-weight="800">${brand.name}</text><text x="48" y="${type.valueY}" text-anchor="middle" fill="${brand.accent}" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="${type.value}" font-weight="800">${escapeXml(headline)}</text><rect x="13" y="${type.barY}" width="70" height="6" rx="3" fill="#ffffff24"/><rect x="13" y="${type.barY}" width="${Math.max(0, Math.min(70, width))}" height="6" rx="3" fill="${brand.accent}"/><text x="48" y="${type.footerY}" text-anchor="middle" fill="#bdc8d6" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="${type.footer}">${escapeXml(footer)}</text>`, size);
 }
 
 export async function renderSummaryKey(snapshot: DashboardSnapshot, size: Dimension = DEFAULT_KEY_SIZE): Promise<Buffer> {
   const attention = snapshot.attentionCount > 0;
   const background = attention ? "#3c2710" : "#202339";
-  const hint = size.height < HINT_MIN_HEIGHT
-    ? ""
-    : `<text x="48" y="88" text-anchor="middle" fill="#717f94" font-family="-apple-system,sans-serif" font-size="8">tap overview</text>`;
-  return keyToRgba(`<rect width="96" height="96" rx="15" fill="${background}"/><text x="48" y="23" text-anchor="middle" fill="#c9d2ff" font-family="-apple-system,sans-serif" font-size="11" font-weight="800">ALL AGENTS</text><text x="31" y="55" text-anchor="middle" fill="#71c7ff" font-family="-apple-system,sans-serif" font-size="22" font-weight="900">${snapshot.openCount}</text><text x="67" y="55" text-anchor="middle" fill="#ffb020" font-family="-apple-system,sans-serif" font-size="22" font-weight="900">${snapshot.attentionCount}</text><text x="31" y="72" text-anchor="middle" fill="#aab6c7" font-family="-apple-system,sans-serif" font-size="8">OPEN</text><text x="67" y="72" text-anchor="middle" fill="#aab6c7" font-family="-apple-system,sans-serif" font-size="8">NEED YOU</text>${hint}`, size);
+  const roomy = size.height >= HINT_MIN_HEIGHT;
+  const hint = roomy
+    ? `<text x="48" y="88" text-anchor="middle" fill="#717f94" font-family="-apple-system,sans-serif" font-size="8">tap overview</text>`
+    : "";
+  const type = roomy
+    ? { title: 11, titleY: 23, count: 22, countY: 55, label: 8, labelY: 72 }
+    // The two labels sit side by side and collide above 8px; only the counts grow.
+    : { title: 12, titleY: 26, count: 26, countY: 62, label: 8, labelY: 82 };
+  return keyToRgba(`<rect width="96" height="96" rx="15" fill="${background}"/><text x="48" y="${type.titleY}" text-anchor="middle" fill="#c9d2ff" font-family="-apple-system,sans-serif" font-size="${type.title}" font-weight="800">ALL AGENTS</text><text x="31" y="${type.countY}" text-anchor="middle" fill="#71c7ff" font-family="-apple-system,sans-serif" font-size="${type.count}" font-weight="900">${snapshot.openCount}</text><text x="67" y="${type.countY}" text-anchor="middle" fill="#ffb020" font-family="-apple-system,sans-serif" font-size="${type.count}" font-weight="900">${snapshot.attentionCount}</text><text x="31" y="${type.labelY}" text-anchor="middle" fill="#aab6c7" font-family="-apple-system,sans-serif" font-size="${type.label}">OPEN</text><text x="67" y="${type.labelY}" text-anchor="middle" fill="#aab6c7" font-family="-apple-system,sans-serif" font-size="${type.label}">NEED YOU</text>${hint}`, size);
 }
 
 export async function renderInfoKey(page: number, total: number, size: Dimension = DEFAULT_KEY_SIZE): Promise<Buffer> {
-  return keyToRgba(`<rect width="96" height="96" rx="15" fill="#251d45"/><circle cx="48" cy="42" r="23" fill="none" stroke="#a78bfa" stroke-width="4"/><text x="48" y="51" text-anchor="middle" fill="#d9ceff" font-family="Georgia,serif" font-size="28" font-weight="700">i</text><text x="48" y="82" text-anchor="middle" fill="#a99bcf" font-family="-apple-system,sans-serif" font-size="10" font-weight="700">INFO ${page + 1}/${total}</text>`, size);
+  const type = size.height >= HINT_MIN_HEIGHT ? { page: 10, pageY: 82 } : { page: 12, pageY: 84 };
+  return keyToRgba(`<rect width="96" height="96" rx="15" fill="#251d45"/><circle cx="48" cy="42" r="23" fill="none" stroke="#a78bfa" stroke-width="4"/><text x="48" y="51" text-anchor="middle" fill="#d9ceff" font-family="Georgia,serif" font-size="28" font-weight="700">i</text><text x="48" y="${type.pageY}" text-anchor="middle" fill="#a99bcf" font-family="-apple-system,sans-serif" font-size="${type.page}" font-weight="700">INFO ${page + 1}/${total}</text>`, size);
 }
 
 export async function renderBlankKey(size: Dimension = DEFAULT_KEY_SIZE): Promise<Buffer> {
