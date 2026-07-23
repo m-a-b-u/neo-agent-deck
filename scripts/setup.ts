@@ -6,15 +6,17 @@ import {
   DEFAULT_CONFIG,
   loadConfig,
   saveConfig,
+  LAYOUT_PRESETS,
   type DeckConfig,
   type InfoModule,
   type KeyModule
 } from "../src/config.js";
+import { defaultLayout, NEO_PROFILE, PROFILES, profileForKeyCount, type DeckProfile } from "../src/device.js";
 
 const KEY_MODULES: readonly KeyModule[] = [
   "claude.status", "codex.status", "opencode.status",
   "claude.usage", "codex.usage", "opencode.usage",
-  "summary", "info", "blank"
+  "summary", "info", "infobar", "blank"
 ];
 
 const KEY_MODULE_HELP: Record<KeyModule, string> = {
@@ -26,6 +28,7 @@ const KEY_MODULE_HELP: Record<KeyModule, string> = {
   "opencode.usage": "OpenCode token usage (tap forces a usage refresh)",
   summary: "All-agents open/attention counters (tap jumps to the All page)",
   info: "InfoBar page indicator (tap cycles the InfoBar)",
+  infobar: "InfoBar tile; adjacent tiles in a row share one strip (tap cycles it)",
   blank: "Dim empty tile (tap just refreshes)"
 };
 
@@ -51,7 +54,7 @@ if (args.includes("--print")) {
 }
 
 if (args.includes("--default") || args.includes("--reset")) {
-  const cfg: DeckConfig = { ...DEFAULT_CONFIG, keys: [...DEFAULT_CONFIG.keys], infoBar: [...DEFAULT_CONFIG.infoBar] };
+  const cfg: DeckConfig = { ...DEFAULT_CONFIG, keys: defaultLayout(profileFromArgs() ?? NEO_PROFILE), infoBar: [...DEFAULT_CONFIG.infoBar] };
   saveConfig(cfg);
   printResult(cfg);
   process.exit(0);
@@ -68,11 +71,13 @@ try {
   console.log("┌─────────────────────────────────────────────┐");
   console.log("│          NEO AGENT DECK · SETUP             │");
   console.log("└─────────────────────────────────────────────┘");
+  const profile = profileFromArgs() ?? await promptProfile(rl, current.keys.length);
+  const startingKeys = current.keys.length === profile.keys.length ? [...current.keys] : defaultLayout(profile);
   console.log("\nCurrent layout (also the recommended default on a fresh install):");
-  printLayout(current.keys);
+  printLayout(startingKeys, profile);
 
   const customize = await promptYesNo(rl, "Customize keys, InfoBar, and brightness now? [y/N]: ");
-  const keys = customize ? await promptKeys(rl, current.keys) : [...current.keys];
+  const keys = customize ? await promptKeys(rl, startingKeys, profile) : startingKeys;
   const infoBar = customize ? await promptInfoBar(rl, current.infoBar) : [...current.infoBar];
   const restingPage = customize ? await promptRestingPage(rl, infoBar, current.restingPage) : current.restingPage;
   const brightness = customize ? await promptBrightness(rl, current.brightness) : current.brightness;
@@ -94,9 +99,32 @@ async function promptYesNo(io: Interface, question: string): Promise<boolean> {
   }
 }
 
-async function promptKeys(io: Interface, current: KeyModule[]): Promise<KeyModule[]> {
-  console.log("Physical key layout (as you look at the Neo):");
-  printLayout(current);
+function profileFromArgs(): DeckProfile | undefined {
+  const flag = args.find((argument) => argument.startsWith("--keys="));
+  return flag ? profileForKeyCount(Number(flag.slice("--keys=".length))) : undefined;
+}
+
+async function promptProfile(io: Interface, currentCount: number): Promise<DeckProfile> {
+  const fallback = profileForKeyCount(currentCount) ?? NEO_PROFILE;
+  if (PROFILES.length === 1) return PROFILES[0];
+  console.log("\nWhich Stream Deck is this config for?");
+  PROFILES.forEach((profile, index) => {
+    console.log(`  ${index + 1}. ${profile.name.padEnd(18)} ${profile.keys.length} keys, ${profile.columns}x${profile.rows}${profile.lcd ? ", InfoBar LCD" : ""}`);
+  });
+  for (;;) {
+    const answer = (await io.question(`Device [${fallback.name}]: `)).trim();
+    if (!answer) return fallback;
+    const byNumber = Number(answer);
+    if (Number.isInteger(byNumber) && byNumber >= 1 && byNumber <= PROFILES.length) return PROFILES[byNumber - 1];
+    const byKeys = profileForKeyCount(byNumber);
+    if (byKeys) return byKeys;
+    console.log(`  Enter 1-${PROFILES.length}, or a key count (${PROFILES.map((profile) => profile.keys.length).join("/")}).`);
+  }
+}
+
+async function promptKeys(io: Interface, current: KeyModule[], profile: DeckProfile): Promise<KeyModule[]> {
+  console.log(`Physical key layout (as you look at the ${profile.name}):`);
+  printLayout(current, profile);
   console.log("Key modules:");
   KEY_MODULES.forEach((module, index) => {
     console.log(`  ${index + 1}. ${module.padEnd(16)} ${KEY_MODULE_HELP[module]}`);
@@ -104,11 +132,12 @@ async function promptKeys(io: Interface, current: KeyModule[]): Promise<KeyModul
   console.log();
 
   const keys: KeyModule[] = [...current];
-  for (let index = 0; index < 8; index += 1) {
-    const row = index < 4 ? "top" : "bottom";
-    const column = (index % 4) + 1;
+  for (const key of profile.keys) {
+    const index = key.index;
+    const row = key.row + 1;
+    const column = key.column + 1;
     for (;;) {
-      const answer = (await io.question(`Key ${index} (${row} row, position ${column}) [${keys[index]}]: `)).trim();
+      const answer = (await io.question(`Key ${index} (row ${row}, position ${column}) [${keys[index]}]: `)).trim();
       if (!answer) break;
       const choice = Number(answer);
       if (Number.isInteger(choice) && choice >= 1 && choice <= KEY_MODULES.length) {
@@ -123,7 +152,7 @@ async function promptKeys(io: Interface, current: KeyModule[]): Promise<KeyModul
     }
   }
   console.log("\nNew layout:");
-  printLayout(keys);
+  printLayout(keys, profile);
   return keys;
 }
 
@@ -177,11 +206,16 @@ async function promptBrightness(io: Interface, current: number): Promise<number>
   }
 }
 
-function printLayout(keys: KeyModule[]): void {
-  const cell = (module: KeyModule): string => module.padEnd(16);
-  console.log(`  [0] ${cell(keys[0])} [1] ${cell(keys[1])} [2] ${cell(keys[2])} [3] ${cell(keys[3])}`);
-  console.log(`  [4] ${cell(keys[4])} [5] ${cell(keys[5])} [6] ${cell(keys[6])} [7] ${cell(keys[7])}`);
-  console.log("      ◀ touch point            248×58 InfoBar            touch point ▶\n");
+function printLayout(keys: KeyModule[], profile: DeckProfile): void {
+  for (let row = 0; row < profile.rows; row += 1) {
+    const cells = profile.keys
+      .filter((key) => key.row === row)
+      .sort((a, b) => a.column - b.column)
+      .map((key) => `[${key.index}] ${(keys[key.index] ?? "blank").padEnd(16)}`);
+    console.log(`  ${cells.join("")}`);
+  }
+  if (profile.lcd) console.log(`      ◀ touch point            ${profile.lcd.pixelSize.width}×${profile.lcd.pixelSize.height} InfoBar            touch point ▶`);
+  console.log();
 }
 
 function printResult(cfg: DeckConfig): void {
@@ -206,6 +240,7 @@ Interactive mode (default, requires a terminal):
   config.json to ${configDir()}.
 
 Flags:
+  --keys=<n>  Target a deck by key count (${Object.keys(LAYOUT_PRESETS).join(" or ")}) instead of asking.
   --print     Print the current effective config as JSON and exit.
   --default   Write the default config without prompting.
   --reset     Same as --default.
