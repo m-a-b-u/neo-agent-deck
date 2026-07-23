@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { DeviceModelId, listStreamDecks } from "@elgato-stream-deck/node";
+import { getStreamDeckModelName, listStreamDecks } from "@elgato-stream-deck/node";
 import { Dashboard } from "../src/dashboard.js";
 import { readClaudeAccessToken } from "../src/lib/claude-auth.js";
 import { claudeSessionsDirectory, codexSessionsDirectory, openCodeDatabaseFile, platformLabel } from "../src/platform.js";
@@ -8,8 +8,11 @@ import { claudeSessionsDirectory, codexSessionsDirectory, openCodeDatabaseFile, 
 console.log(`Platform: ${platformLabel()} · Node ${process.version}`);
 try {
   const devices = await listStreamDecks();
-  const neo = devices.find((device) => device.model === DeviceModelId.NEO);
-  console.log(`${neo ? "✓" : "○"} Stream Deck Neo ${neo ? "detected" : "not connected; service will wait"}`);
+  if (devices.length) {
+    for (const device of devices) console.log(`✓ ${getStreamDeckModelName(device.model)} detected`);
+  } else {
+    console.log("○ Stream Deck not connected; service will wait");
+  }
 } catch (error) {
   console.log(`✗ Stream Deck USB scan failed: ${error instanceof Error ? error.message : String(error)}`);
 }

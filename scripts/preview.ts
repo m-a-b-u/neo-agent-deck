@@ -3,20 +3,27 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
-import { DEFAULT_CONFIG } from "../src/config.js";
+import { DEFAULT_CONFIG, type DeckConfig } from "../src/config.js";
 import { Dashboard, summarizeProvider } from "../src/dashboard.js";
+import { defaultLayout, KEYPAD_15_PROFILE, type DeckProfile } from "../src/device.js";
 import { renderDeckBuffers } from "../src/render.js";
 import type { DashboardSnapshot, Provider, SessionSnapshot, UsageSnapshot } from "../src/types.js";
 
 const args = process.argv.slice(2);
 const live = args.includes("--live");
 const readme = args.includes("--readme");
+const keypad15 = args.includes("--15key");
 const outputArg = args.find((argument) => !argument.startsWith("--"));
-const defaultOutput = live ? path.join(os.tmpdir(), "neo-agent-deck-live.png") : "docs/neo-agent-deck-preview.png";
+const defaultOutput = keypad15
+  ? "docs/images/15-key-preview.png"
+  : live ? path.join(os.tmpdir(), "neo-agent-deck-live.png") : "docs/neo-agent-deck-preview.png";
 const output = path.resolve(outputArg || defaultOutput);
 const snapshot = live ? await new Dashboard().collect(true) : sampleSnapshot();
 
-if (readme) {
+if (keypad15) {
+  await writeKeypadPreview(snapshot, KEYPAD_15_PROFILE, DEFAULT_CONFIG.infoBar.indexOf("all"), output);
+  console.log(output);
+} else if (readme) {
   const images = path.resolve("docs/images");
   const heroOutput = path.join(images, "hero.png");
   const statusOutput = path.join(images, "status-states.png");
@@ -185,6 +192,48 @@ async function writeDeckPreview(data: DashboardSnapshot, page: number, file: str
   const device = await renderDevice(data, page, 1);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   await sharp(device).png().toFile(file);
+}
+
+async function writeKeypadPreview(data: DashboardSnapshot, profile: DeckProfile, page: number, file: string): Promise<void> {
+  const device = await renderKeypadDevice(data, profile, page);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  await sharp(device).png().toFile(file);
+}
+
+/** Shell for keypad-only decks: the InfoBar lives on keys, so there is no LCD cutout to draw. */
+async function renderKeypadDevice(data: DashboardSnapshot, profile: DeckProfile, page: number): Promise<Buffer> {
+  const config: DeckConfig = { ...DEFAULT_CONFIG, keys: defaultLayout(profile) };
+  const buffers = await renderDeckBuffers(data, page, config, profile);
+  const display = 118;
+  const gap = 20;
+  const margin = 92;
+  const top = 76;
+  const width = profile.columns * display + (profile.columns - 1) * gap + margin * 2;
+  const height = profile.rows * display + (profile.rows - 1) * gap + top + 104;
+  const tiles = await Promise.all(profile.keys.map((key, index) =>
+    sharp(buffers[index], { raw: { width: key.pixelSize.width, height: key.pixelSize.height, channels: 4 } })
+      .resize(display, display)
+      .png()
+      .toBuffer()));
+  const shell = svg(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <defs>
+        <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2b303b"/><stop offset=".13" stop-color="#161a22"/><stop offset="1" stop-color="#080a0f"/></linearGradient>
+        <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#64748b" stop-opacity=".42"/><stop offset=".4" stop-color="#ffffff" stop-opacity=".05"/><stop offset="1" stop-color="#020308"/></linearGradient>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="22"/></filter>
+      </defs>
+      <ellipse cx="${width / 2}" cy="${height - 20}" rx="${width * 0.44}" ry="26" fill="#000" opacity=".62" filter="url(#shadow)"/>
+      <rect x="38" y="26" width="${width - 76}" height="${height - 76}" rx="54" fill="url(#edge)"/>
+      <rect x="40" y="28" width="${width - 80}" height="${height - 80}" rx="52" fill="url(#body)"/>
+      <rect x="48" y="36" width="${width - 96}" height="${height - 96}" rx="46" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+      <text x="${width / 2}" y="${top + profile.rows * display + (profile.rows - 1) * gap + 40}" text-anchor="middle" fill="#5e6878" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="3">${profile.name.toUpperCase()}</text>
+    </svg>`);
+  const composites: sharp.OverlayOptions[] = profile.keys.map((key, index) => ({
+    input: tiles[index],
+    left: margin + key.column * (display + gap),
+    top: top + key.row * (display + gap)
+  }));
+  return sharp(shell).composite(composites).png().toBuffer();
 }
 
 async function renderDevice(data: DashboardSnapshot, page: number, scale: number): Promise<Buffer> {

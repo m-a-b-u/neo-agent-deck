@@ -39,6 +39,7 @@
     "install:mac": "bash scripts/install-macos.sh",
     "install:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows.ps1",
     "preview": "tsx scripts/preview.ts",
+    "preview:15key": "tsx scripts/preview.ts --15key",
     "preview:docs": "tsx scripts/preview.ts --readme",
     "setup": "tsx scripts/setup.ts",
     "preview:live": "tsx scripts/preview.ts --live",
